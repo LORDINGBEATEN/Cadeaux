@@ -1,31 +1,59 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { VERSION } from '../lib/Brand'
 
+type Mode = 'home' | 'signin' | 'signup'
+
+// Accepte un code seul ou un lien complet (…/s/<code>).
+function extractCode(v: string): string {
+  const s = v.trim()
+  const m = s.match(/\/s\/([^/?#\s]+)/)
+  return m ? m[1] : s
+}
+
 export default function Login() {
+  const nav = useNavigate()
+  const [mode, setMode] = useState<Mode>('home')
+  const [code, setCode] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
 
-  async function submit(e: React.FormEvent) {
+  function go(m: Mode) { setMode(m); setErr(''); setMsg('') }
+
+  function openCode(e: React.FormEvent) {
+    e.preventDefault()
+    const c = extractCode(code)
+    if (!c) return setErr('Saisissez le code ou le lien de la liste.')
+    nav(`/s/${encodeURIComponent(c)}`)
+  }
+
+  async function signIn(e: React.FormEvent) {
     e.preventDefault()
     setErr(''); setMsg('')
-    if (password) {
-      let { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) {
-        const r = await supabase.auth.signUp({ email, password, options: { data: { name: name || undefined } } })
-        if (r.error) return setErr(error.message)
-        if (!r.data.session) setMsg('Compte créé : vérifiez vos e-mails pour confirmer.')
-      }
-    } else {
-      const { error } = await supabase.auth.signInWithOtp({
-        email, options: { emailRedirectTo: window.location.origin, data: { name: name || undefined } },
-      })
-      if (error) return setErr(error.message)
-      setMsg('Lien de connexion envoyé ! Regardez votre boîte mail.')
-    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) setErr('E-mail ou mot de passe incorrect.')
+  }
+
+  async function signUp(e: React.FormEvent) {
+    e.preventDefault()
+    setErr(''); setMsg('')
+    const { data, error } = await supabase.auth.signUp({
+      email, password, options: { data: { name: name.trim() || undefined } },
+    })
+    if (error) return setErr(error.message)
+    if (!data.session) setMsg('Compte créé : vérifiez vos e-mails pour confirmer.')
+  }
+
+  async function magic() {
+    setErr(''); setMsg('')
+    if (!email) return setErr('Saisissez d\'abord votre e-mail.')
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } })
+    if (error) return setErr(error.message)
+    setMsg('Lien de connexion envoyé ! Regardez votre boîte mail.')
   }
 
   return (
@@ -34,13 +62,41 @@ export default function Login() {
       <h1 style={{ marginBottom: 0 }}>Ma P'tite Liste</h1>
       <small className="ver">{VERSION}</small>
       <p className="muted">Créez vos listes d'idées cadeaux et partagez-les par lien : vos proches réservent, sans doublons.</p>
-      <form onSubmit={submit}>
-        <input type="text" placeholder="Prénom (pour un nouveau compte)" value={name} onChange={e => setName(e.target.value)} />
-        <input type="email" required placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)} />
-        <input type="password" placeholder="Mot de passe (facultatif)" value={password} onChange={e => setPassword(e.target.value)} />
-        <button>{password ? 'Se connecter / créer le compte' : 'Recevoir un lien de connexion'}</button>
-      </form>
-      <p className="muted small">Sans mot de passe, un lien magique vous est envoyé par e-mail.</p>
+
+      {mode === 'home' && <>
+        <form onSubmit={openCode} className="code-box">
+          <strong>Vous avez reçu un code ?</strong>
+          <div className="row">
+            <input type="text" placeholder="Code ou lien de la liste" value={code} onChange={e => setCode(e.target.value)} />
+            <button>Ouvrir</button>
+          </div>
+        </form>
+        <p className="muted small">Pas besoin de compte pour réserver une idée.</p>
+        <div className="row auth-btns">
+          <button type="button" onClick={() => go('signin')}>Se connecter</button>
+          <button type="button" className="secondary" onClick={() => go('signup')}>Créer un compte</button>
+        </div>
+      </>}
+
+      {mode === 'signin' && (
+        <form onSubmit={signIn}>
+          <input type="email" required placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)} />
+          <input type="password" required placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} />
+          <button>Se connecter</button>
+          <p className="muted small"><a href="#" onClick={e => { e.preventDefault(); magic() }}>Recevoir un lien de connexion par e-mail</a></p>
+        </form>
+      )}
+
+      {mode === 'signup' && (
+        <form onSubmit={signUp}>
+          <input type="text" required placeholder="Prénom" value={name} onChange={e => setName(e.target.value)} />
+          <input type="email" required placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)} />
+          <input type="password" required minLength={6} placeholder="Mot de passe (6 caractères min.)" value={password} onChange={e => setPassword(e.target.value)} />
+          <button>Créer mon compte</button>
+        </form>
+      )}
+
+      {mode !== 'home' && <p className="muted small"><a href="#" onClick={e => { e.preventDefault(); go('home') }}>← Retour</a></p>}
       {msg && <p className="ok">{msg}</p>}
       {err && <p className="err">{err}</p>}
     </main>
