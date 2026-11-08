@@ -38,6 +38,9 @@ export default function ListPage() {
   const [copied, setCopied] = useState(false)
   const [refreshMsg, setRefreshMsg] = useState('')
   const [refreshing, setRefreshing] = useState(false)
+  const [editing, setEditing] = useState<string | null>(null)
+  const [draft, setDraft] = useState({ url: '', title: '', price: '', note: '', image: '' })
+  const [editErr, setEditErr] = useState('')
   const lastLookup = useRef('')
 
   async function load() {
@@ -120,6 +123,25 @@ export default function ListPage() {
       ? `${updated} idée${updated > 1 ? 's' : ''} complétée${updated > 1 ? 's' : ''}. Les autres sont sur des sites qui bloquent la lecture.`
       : 'Rien de nouveau trouvé : ces sites bloquent la lecture automatique.')
   }
+  function startEdit(i: Item) {
+    setEditErr('')
+    setDraft({ url: i.url, title: i.title ?? '', price: i.price !== null ? String(i.price) : '', note: i.note ?? '', image: i.image_url ?? '' })
+    setEditing(i.id)
+  }
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault(); setEditErr('')
+    const img = draft.image.trim()
+    if (img && !/^https?:\/\/\S+$/i.test(img)) return setEditErr("L'adresse de la photo doit commencer par https://")
+    const price = draft.price.trim() ? Number(draft.price.replace(',', '.')) : null
+    if (price !== null && !Number.isFinite(price)) return setEditErr('Prix invalide')
+    const cur = items.find(x => x.id === editing)
+    const { error } = await supabase.from('items').update({
+      url: normalize(draft.url), title: draft.title.trim() || null, note: draft.note.trim() || null,
+      price, currency: price !== null ? cur?.currency || 'EUR' : null, image_url: img || null,
+    }).eq('id', editing)
+    if (error) return setEditErr('Modification impossible : ' + error.message)
+    setEditing(null); load()
+  }
   async function remove(itemId: string) { await supabase.from('items').delete().eq('id', itemId); load() }
   async function deleteList() {
     if (!confirm('Supprimer cette liste et ses idées ?')) return
@@ -150,7 +172,24 @@ export default function ListPage() {
       {refreshMsg && <p className="muted small">{refreshMsg}</p>}
       {items.length === 0 && <p className="muted">Collez ci-dessous des liens vers des pages web qui montrent vos idées de cadeaux.</p>}
       <ul className="items">
-        {items.map(i => (
+        {items.map(i => editing === i.id ? (
+          <li key={i.id} className="editing">
+            <form onSubmit={saveEdit}>
+              <input required placeholder="Lien de la page web" value={draft.url} onChange={e => setDraft({ ...draft, url: e.target.value })} />
+              <div className="row">
+                <input placeholder="Nom" value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} />
+                <input inputMode="decimal" placeholder="Prix" value={draft.price} onChange={e => setDraft({ ...draft, price: e.target.value })} style={{ maxWidth: 110 }} />
+              </div>
+              <input placeholder="Note : taille, couleur… (facultatif)" value={draft.note} onChange={e => setDraft({ ...draft, note: e.target.value })} />
+              <div className="it-preview">
+                <Thumb label={draft.title || 'Idée'} image={draft.image.trim() || null} />
+                <input placeholder="Adresse de la photo (https://…, facultatif)" value={draft.image} onChange={e => setDraft({ ...draft, image: e.target.value })} style={{ flex: 1 }} />
+              </div>
+              {editErr && <p className="err">{editErr}</p>}
+              <div className="btnrow"><button>Enregistrer</button><button type="button" className="secondary" onClick={() => setEditing(null)}>Annuler</button></div>
+            </form>
+          </li>
+        ) : (
           <li key={i.id}>
             <Thumb label={itemLabel(i)} image={i.image_url} />
             <div>
@@ -158,7 +197,10 @@ export default function ListPage() {
               <div className="muted small">{hostOf(i.url)}{i.note ? ` · ${i.note}` : ''}</div>
             </div>
             {i.price !== null && <div className="price">{fmtPrice(i.price, i.currency)}</div>}
-            <button className="link" onClick={() => remove(i.id)}>Supprimer</button>
+            <div className="actions">
+              <button className="link" onClick={() => startEdit(i)}>Modifier</button>
+              <button className="link" onClick={() => remove(i.id)}>Supprimer</button>
+            </div>
           </li>
         ))}
       </ul>
