@@ -38,7 +38,7 @@ export default function SharedList() {
   function openContribute(i: Item) {
     const mine = i.contributors?.find(c => c.mine)
     const remaining = Math.max((i.price ?? 0) - Number(i.contrib_total), 0) + (mine?.amount ?? 0)
-    setAmount(String(mine?.amount ?? remaining)); setBuyer(!!mine?.buyer); setErr(''); setContributing(i.id)
+    setAmount(mine ? String(mine.amount) : i.price !== null ? String(remaining) : ''); setBuyer(!!mine?.buyer); setErr(''); setContributing(i.id)
   }
   async function contribute(e: React.FormEvent) {
     e.preventDefault(); setErr('')
@@ -61,17 +61,17 @@ export default function SharedList() {
     load()
   }
   const canOffer = (i: Item) => !data!.is_owner && !i.mine && !i.claimed && (!i.group_gift || Number(i.contrib_count) === 0)
-  const isComplete = (i: Item) => i.group_gift && Number(i.contrib_count) > 0 && Number(i.contrib_total) >= (i.price ?? 0)
+  const isComplete = (i: Item) => i.group_gift && i.price !== null && Number(i.contrib_count) > 0 && Number(i.contrib_total) >= i.price
   function groupBlock(i: Item) {
     const price = i.price ?? 0, total = Number(i.contrib_total), n = Number(i.contrib_count)
     const complete = isComplete(i)
     const mine = i.contributors?.find(c => c.mine)
     return (
       <div className="group">
-        <div className="pbar"><div style={{ width: `${Math.min(100, price ? (total / price) * 100 : 0)}%` }} /></div>
+        {i.price !== null && <div className="pbar"><div style={{ width: `${Math.min(100, price ? (total / price) * 100 : 0)}%` }} /></div>}
         <div className="between small" style={{ marginTop: 4 }}>
-          <span className="muted">{fmtPrice(total, i.currency)} réunis sur {fmtPrice(price, i.currency)} · {n} participant{n > 1 ? 's' : ''}</span>
-          <strong className={complete ? 'ok' : 'miss'}>{complete ? 'Complet' : `Il manque ${fmtPrice(price - total, i.currency)}`}</strong>
+          <span className="muted">{fmtPrice(total, i.currency)} réunis{i.price !== null ? ` sur ${fmtPrice(price, i.currency)}` : ''} · {n} participant{n > 1 ? 's' : ''}</span>
+          {i.price !== null && <strong className={complete ? 'ok' : 'miss'}>{complete ? 'Complet' : `Il manque ${fmtPrice(price - total, i.currency)}`}</strong>}
         </div>
         {i.contributors === null && n > 0 && <div className="muted small">Les noms sont visibles après avoir participé.</div>}
         {i.contributors && i.contributors.length > 0 && (
@@ -122,7 +122,7 @@ export default function SharedList() {
           <li key={i.id} className={`${i.claimed || isComplete(i) ? 'taken' : ''}${canOffer(i) || (i.group_gift && !i.claimed && !data.is_owner) ? ' has-group' : ''}`}>
             {(i.claimed || isComplete(i)) && <span className="ribbon"><i>{i.claimed ? 'Réservé' : 'Complet'}</i></span>}
             <Thumb label={itemLabel(i)} image={i.image_url} />
-            <div>
+            <div className="it-main">
               {i.url ? <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a> : <strong>{itemLabel(i)}</strong>}
               <div className="muted small">{[i.price !== null ? fmtPrice(i.price, i.currency) : null, i.url ? hostOf(i.url) : null, i.note].filter(Boolean).join(' · ')}</div>
             </div>
@@ -167,12 +167,12 @@ export default function SharedList() {
         return (
           <Modal title="Participer au cadeau" onClose={() => setContributing(null)}>
             <form onSubmit={contribute}>
-              <p className="muted small" style={{ marginTop: 0 }}>« {itemLabel(it)} » · il manque {fmtPrice(remaining, it.currency)}. Les autres participants verront votre prénom et votre part.</p>
+              <p className="muted small" style={{ marginTop: 0 }}>« {itemLabel(it)} »{it.price !== null ? ` · il manque ${fmtPrice(remaining, it.currency)}` : ''}. Les autres participants verront votre prénom et votre part.</p>
               <label className="small">Votre prénom</label>
               <input required autoFocus maxLength={60} placeholder="Ex : Marie" value={name} onChange={e => setName(e.target.value)} />
               <label className="small">Votre participation ({it.currency || 'EUR'})</label>
               <input required inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} />
-              <p className="muted small" style={{ margin: '2px 0 0' }}>Maximum {fmtPrice(remaining, it.currency)}. Le règlement se fait entre participants, hors de l'application.</p>
+              <p className="muted small" style={{ margin: '2px 0 0' }}>{it.price !== null ? `Maximum ${fmtPrice(remaining, it.currency)}. ` : ''}Le règlement se fait entre participants, hors de l'application.</p>
               <label className="check"><input type="checkbox" checked={buyer} onChange={e => setBuyer(e.target.checked)} /><span>Je m'occupe de l'achat</span></label>
               {err && <p className="err">{err}</p>}
               <div className="btnrow" style={{ marginTop: 12 }}>

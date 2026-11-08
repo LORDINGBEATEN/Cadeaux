@@ -53,6 +53,7 @@ export default function ListPage() {
   const [claims, setClaims] = useState<Record<string, string>>({})
   const [hideClaims, setHideClaims] = useState(localStorage.getItem('ptite-hide-claims') === '1')
   const [adding, setAdding] = useState(false)
+  const [broken, setBroken] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState<'all' | 'free' | 'taken'>('all')
   const [menuFor, setMenuFor] = useState<string | null>(null)
   const lastLookup = useRef('')
@@ -120,7 +121,7 @@ export default function ListPage() {
   }
   // Relit les liens déjà ajoutés et complète ce qui manque, sans écraser l'existant.
   async function refresh() {
-    const todo = items.filter(i => i.url && (!i.image_url || i.price === null || !i.title))
+    const todo = items.filter(i => i.url && (!i.image_url || broken.has(i.id) || i.price === null || !i.title))
     if (todo.length === 0) return setRefreshMsg('Tout est déjà à jour.')
     setRefreshing(true)
     let done = 0, updated = 0
@@ -134,7 +135,7 @@ export default function ListPage() {
           const p = await fetchPreview(it.url!)
           const patch: Partial<Item> = {}
           if (!it.title && p.title) patch.title = p.title
-          if (!it.image_url && p.image) patch.image_url = p.image
+          if ((!it.image_url || broken.has(it.id)) && p.image && p.image !== it.image_url) patch.image_url = p.image
           if (it.price === null && p.price !== null) { patch.price = p.price; patch.currency = p.currency || 'EUR' }
           if (Object.keys(patch).length > 0) {
             const { error } = await supabase.from('items').update(patch).eq('id', it.id)
@@ -270,8 +271,8 @@ export default function ListPage() {
         ) : (
           <li key={i.id} className={`${done(i) && !hideClaims ? 'taken' : ''}${(contribs[i.id]?.length ?? 0) > 0 ? ' has-group' : ''}`}>
             {done(i) && !hideClaims && <span className="ribbon"><i>{claims[i.id] ? 'Réservé' : 'Complet'}</i></span>}
-            <Thumb label={itemLabel(i)} image={i.image_url} />
-            <div>
+            <Thumb label={itemLabel(i)} image={i.image_url} onBroken={() => setBroken(b => new Set(b).add(i.id))} />
+            <div className="it-main">
               {i.url ? <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a> : <strong>{itemLabel(i)}</strong>}
               <div className="muted small">{[i.url ? hostOf(i.url) : 'Sans lien', i.note].filter(Boolean).join(' · ')}</div>
             </div>
@@ -284,7 +285,7 @@ export default function ListPage() {
               {menuFor === i.id && (
                 <div className="profile-menu" role="menu">
                   <button type="button" className="pm-item" onClick={() => { setMenuFor(null); startEdit(i) }}>Modifier</button>
-                  {!claims[i.id] && i.price !== null && <button type="button" className="pm-item" onClick={() => { setMenuFor(null); toggleGroup(i) }}>{i.no_group ? 'Autoriser les participations' : 'Ne pas proposer « à plusieurs »'}</button>}
+                  {!claims[i.id] && <button type="button" className="pm-item" onClick={() => { setMenuFor(null); toggleGroup(i) }}>{i.no_group ? 'Autoriser les participations' : 'Ne pas proposer « à plusieurs »'}</button>}
                   {!hideClaims && claims[i.id] && <button type="button" className="pm-item" onClick={() => { setMenuFor(null); unclaimItem(i.id) }}>Retirer la réservation</button>}
                   <button type="button" className="pm-item" onClick={() => { setMenuFor(null); remove(i.id) }}>Supprimer</button>
                 </div>
@@ -295,10 +296,10 @@ export default function ListPage() {
                 {hideClaims
                   ? <span className="chip">Des participations en cours</span>
                   : <>
-                      <div className="pbar"><div style={{ width: `${Math.min(100, i.price ? (total(i) / i.price) * 100 : 0)}%` }} /></div>
+                      {i.price !== null && <div className="pbar"><div style={{ width: `${Math.min(100, i.price ? (total(i) / i.price) * 100 : 0)}%` }} /></div>}
                       <div className="between small" style={{ marginTop: 4 }}>
-                        <span className="muted">{fmtPrice(total(i), i.currency)} réunis sur {fmtPrice(i.price!, i.currency)} · {(contribs[i.id] ?? []).length} participant{(contribs[i.id] ?? []).length > 1 ? 's' : ''}</span>
-                        <strong className={complete(i) ? 'ok' : 'miss'}>{complete(i) ? 'Complet' : `Il manque ${fmtPrice(i.price! - total(i), i.currency)}`}</strong>
+                        <span className="muted">{fmtPrice(total(i), i.currency)} réunis{i.price !== null ? ` sur ${fmtPrice(i.price, i.currency)}` : ''} · {(contribs[i.id] ?? []).length} participant{(contribs[i.id] ?? []).length > 1 ? 's' : ''}</span>
+                        {i.price !== null && <strong className={complete(i) ? 'ok' : 'miss'}>{complete(i) ? 'Complet' : `Il manque ${fmtPrice(i.price - total(i), i.currency)}`}</strong>}
                       </div>
                       {(contribs[i.id] ?? []).length > 0 && !contribs[i.id].some(c => c.is_buyer) && (
                         <div className="alert">⚠️ Aucun participant ne s'est encore déclaré pour acheter ce cadeau.</div>
