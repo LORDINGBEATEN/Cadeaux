@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import Thumb from '../lib/Thumb'
 import NewListModal from '../lib/NewListModal'
 import Modal from '../lib/Modal'
-import { fmtDate, fmtPrice, hostOf, itemLabel } from '../lib/util'
+import { daysUntil, fmtDate, fmtPrice, hostOf, inDays, itemLabel } from '../lib/util'
 
 type Item = { id: string; title: string | null; url: string | null; note: string | null; price: number | null; currency: string | null; image_url: string | null }
 type List = { title: string; occasion: string; event_date: string | null; share_code: string; archived_at: string | null }
@@ -49,6 +49,9 @@ export default function ListPage() {
   const [claimErr, setClaimErr] = useState('')
   const [claims, setClaims] = useState<Record<string, string>>({})
   const [hideClaims, setHideClaims] = useState(localStorage.getItem('ptite-hide-claims') === '1')
+  const [adding, setAdding] = useState(false)
+  const [filter, setFilter] = useState<'all' | 'free' | 'taken'>('all')
+  const [menuFor, setMenuFor] = useState<string | null>(null)
   const lastLookup = useRef('')
 
   async function load() {
@@ -61,6 +64,12 @@ export default function ListPage() {
     setClaims(Object.fromEntries(((cl.data ?? []) as { item_id: string; guest_name: string }[]).map(c => [c.item_id, c.guest_name])))
   }
   useEffect(() => { load() }, [id])
+  useEffect(() => {
+    if (!menuFor) return
+    const h = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest('.imenu')) setMenuFor(null) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [menuFor])
 
   const normalize = (raw: string) => {
     const u = raw.trim()
@@ -98,7 +107,7 @@ export default function ListPage() {
       image_url: image,
     })
     if (error) return setErr('Ajout impossible : ' + error.message)
-    setF(EMPTY); setCurrency(null); setImage(null); setHint(''); lastLookup.current = ''; load()
+    setF(EMPTY); setCurrency(null); setImage(null); setHint(''); lastLookup.current = ''; setAdding(false); load()
   }
   // Relit les liens déjà ajoutés et complète ce qui manque, sans écraser l'existant.
   async function refresh() {
@@ -177,43 +186,54 @@ export default function ListPage() {
 
   if (!list) return <p>Chargement…</p>
   const link = `${window.location.origin}/s/${list.share_code}`
+  function toggleHide(v: boolean) { setHideClaims(v); localStorage.setItem('ptite-hide-claims', v ? '1' : '0') }
   async function copy() { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 2000) }
+
+  const taken = items.filter(i => claims[i.id]).length
+  const d = daysUntil(list.event_date)
+  const shown = items.filter(i => hideClaims || filter === 'all' || (filter === 'taken' ? !!claims[i.id] : !claims[i.id]))
+  const sub = [list.occasion, list.event_date && fmtDate(list.event_date), d !== null && d >= 0 ? inDays(d) : null].filter(Boolean).join(' · ')
 
   return (
     <>
       <p><Link to="/">← Mes listes</Link></p>
-      <div className="between" style={{ marginTop: 0 }}>
-        <h2 style={{ margin: 0 }}>{list.title}</h2>
+      <div className="between" style={{ marginTop: 0, alignItems: 'flex-start' }}>
+        <div><h2 style={{ margin: 0 }}>{list.title}</h2><div className="muted small">{sub}</div></div>
         <button type="button" className="secondary" onClick={() => setEditingList(true)}>✎ Modifier</button>
       </div>
-      <span className="chip">{list.occasion}{list.event_date ? ` · ${fmtDate(list.event_date)}` : ''}</span>
       {list.archived_at && (
         <div className="note" style={{ marginTop: 12 }}>
-          📦 Cette liste est archivée : elle n'apparaît plus dans « Mes listes ». Son lien de partage reste actif.{' '}
+          Cette liste est archivée : elle n'apparaît plus dans « Mes listes ». Son lien de partage reste actif.{' '}
           <button type="button" className="link" onClick={() => setArchived(false)}>Restaurer</button>
         </div>
       )}
 
-      <div className="card share">
-        <strong>Lien à partager</strong>
-        <p className="muted small">Toute personne qui a ce lien peut voir la liste et réserver une idée, sans créer de compte.</p>
-        <div className="row"><input readOnly value={link} onFocus={e => e.target.select()} /><button onClick={copy}>{copied ? 'Copié ✓' : 'Copier'}</button></div>
-        <p className="note">
-          {hideClaims ? '🤫 Réservations masquées pour garder la surprise.' : '👀 Les réservations de vos proches s’affichent sur vos idées.'}{' '}
-          <button type="button" className="link" onClick={() => { const v = !hideClaims; setHideClaims(v); localStorage.setItem('ptite-hide-claims', v ? '1' : '0') }}>
-            {hideClaims ? 'Afficher' : 'Masquer'}
-          </button>
-        </p>
+      <div className="card lsum">
+        <div style={{ flex: 1, minWidth: 180 }}>
+          {hideClaims
+            ? <div className="muted small">Réservations masquées : la surprise est gardée. <button type="button" className="link" onClick={() => toggleHide(false)}>Afficher</button></div>
+            : <>
+                <div className="muted small">{taken} idée{taken > 1 ? 's' : ''} sur {items.length} réservée{taken > 1 ? 's' : ''} · <button type="button" className="link" onClick={() => toggleHide(true)}>Masquer</button></div>
+                <div className="pbar"><div style={{ width: items.length ? `${(taken / items.length) * 100}%` : 0 }} /></div>
+              </>}
+        </div>
+        <button onClick={copy}>{copied ? 'Lien copié ✓' : '🔗 Copier le lien'}</button>
       </div>
+      <p className="muted small" style={{ margin: '-4px 0 0' }}>Toute personne qui a le lien peut voir la liste et réserver une idée, sans créer de compte.</p>
 
       <div className="between">
-        <h3 style={{ margin: 0 }}>Mes idées</h3>
-        {items.length > 0 && <button type="button" className="secondary" onClick={refresh} disabled={refreshing}>↻ Actualiser les infos</button>}
+        <h3 style={{ margin: 0 }}>Idées ({items.length})</h3>
+        {!hideClaims && items.length > 0 && (
+          <div className="seg" role="group" aria-label="Filtrer">
+            {([['all', 'Toutes'], ['free', 'Disponibles'], ['taken', 'Réservées']] as const).map(([k, label]) =>
+              <button key={k} className={filter === k ? 'on' : ''} aria-pressed={filter === k} onClick={() => setFilter(k)}>{label}</button>)}
+          </div>
+        )}
       </div>
       {refreshMsg && <p className="muted small">{refreshMsg}</p>}
-      {items.length === 0 && <p className="muted">Ajoutez ci-dessous vos idées : avec un lien vers une page web, ou simplement un nom.</p>}
-      <ul className="items">
-        {items.map(i => editing === i.id ? (
+      {items.length === 0 && <p className="muted">Ajoutez vos idées : avec un lien vers une page web, ou simplement un nom.</p>}
+      <ul className="items irows">
+        {shown.map(i => editing === i.id ? (
           <li key={i.id} className="editing">
             <form onSubmit={saveEdit}>
               <input placeholder="Lien de la page web (facultatif)" value={draft.url} onChange={e => setDraft({ ...draft, url: e.target.value })} />
@@ -236,25 +256,36 @@ export default function ListPage() {
             <div>
               {i.url ? <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a> : <strong>{itemLabel(i)}</strong>}
               <div className="muted small">{[i.url ? hostOf(i.url) : 'Sans lien', i.note].filter(Boolean).join(' · ')}</div>
-              {!hideClaims && (
-                <div className="claimrow">
-                  {claims[i.id]
-                    ? <><span className="badge">Réservé par {claims[i.id]}</span><button type="button" className="link" onClick={() => unclaimItem(i.id)}>Retirer</button></>
-                    : <button type="button" className="link" onClick={() => { setClaimName(''); setClaimErr(''); setClaimFor(i.id) }}>Réserver pour quelqu'un…</button>}
+            </div>
+            {!hideClaims && (claims[i.id]
+              ? <span className="badge">Réservé par {claims[i.id]}</span>
+              : <button type="button" className="link" onClick={() => { setClaimName(''); setClaimErr(''); setClaimFor(i.id) }}>Réserver pour…</button>)}
+            {i.price !== null && <div className="price">{fmtPrice(i.price, i.currency)}</div>}
+            <div className="imenu">
+              <button type="button" className="link" aria-label="Actions" aria-expanded={menuFor === i.id} onClick={() => setMenuFor(m => m === i.id ? null : i.id)}>⋯</button>
+              {menuFor === i.id && (
+                <div className="profile-menu" role="menu">
+                  <button type="button" className="pm-item" onClick={() => { setMenuFor(null); startEdit(i) }}>Modifier</button>
+                  {!hideClaims && claims[i.id] && <button type="button" className="pm-item" onClick={() => { setMenuFor(null); unclaimItem(i.id) }}>Retirer la réservation</button>}
+                  <button type="button" className="pm-item" onClick={() => { setMenuFor(null); remove(i.id) }}>Supprimer</button>
                 </div>
               )}
-            </div>
-            {i.price !== null && <div className="price">{fmtPrice(i.price, i.currency)}</div>}
-            <div className="actions">
-              <button className="link" onClick={() => startEdit(i)}>Modifier</button>
-              <button className="link" onClick={() => remove(i.id)}>Supprimer</button>
             </div>
           </li>
         ))}
       </ul>
+      {items.length > 0 && shown.length === 0 && <p className="muted">Aucune idée dans ce filtre.</p>}
 
-      <form onSubmit={addItem} className="card">
-        <h3>Ajouter une idée</h3>
+      <button type="button" className="addrow" onClick={() => { setErr(''); setAdding(true) }}>+ Ajouter une idée</button>
+
+      <div className="btnrow" style={{ marginTop: 20, alignItems: 'center' }}>
+        {items.length > 0 && <button type="button" className="link" style={{ marginTop: 0 }} onClick={refresh} disabled={refreshing}>↻ Actualiser les infos</button>}
+        {!list.archived_at && <button type="button" className="link" style={{ marginTop: 0 }} onClick={() => setArchived(true)}>Archiver la liste</button>}
+        <button type="button" className="link danger" style={{ marginTop: 0 }} onClick={deleteList}>Supprimer la liste</button>
+      </div>
+      {adding && (
+        <Modal title="Ajouter une idée" onClose={() => setAdding(false)}>
+      <form onSubmit={addItem}>
         <p className="muted small" style={{ margin: '-4px 0 4px' }}>Collez un lien pour remplir le nom, le prix et la photo, ou saisissez simplement un nom.</p>
         <input placeholder="Lien de la page web (https://…), facultatif" value={f.url}
           onChange={e => setF({ ...f, url: e.target.value })}
@@ -275,10 +306,8 @@ export default function ListPage() {
         <button disabled={searching}>Ajouter</button>
         {err && <p className="err">{err}</p>}
       </form>
-      <div className="btnrow" style={{ marginTop: 20 }}>
-        {!list.archived_at && <button type="button" className="secondary" onClick={() => setArchived(true)}>📦 Archiver la liste</button>}
-        <button type="button" className="link danger" style={{ marginTop: 0 }} onClick={deleteList}>Supprimer la liste</button>
-      </div>
+        </Modal>
+      )}
       {editingList && (
         <NewListModal
           edit={{ id: id!, title: list.title, occasion: list.occasion, event_date: list.event_date }}

@@ -202,3 +202,9 @@ ol { padding-left:1.2rem } li { margin:4px 0 }
 .bm-title img{border-radius:6px}
 .bmupdate{border-left-color:#E0A100;background:#FFFBEB}
 .bmupdate-note{background:#FFFBEB;border:1px solid #F3DFA0;border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:.92rem}
+.lsum{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:14px 0 8px}
+.pbar{height:6px;border-radius:99px;background:#F3EBE4;margin-top:8px;overflow:hidden}
+.pbar>div{height:100%;background:var(--accent);border-radius:99px}
+.imenu{position:relative}
+.imenu .profile-menu{top:34px;min-width:190px}
+.items.irows li{border-radius:14px}
