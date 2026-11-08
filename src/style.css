@@ -127,7 +127,7 @@ ol { padding-left:1.2rem } li { margin:4px 0 }
 .dialog { background:#fff; border-radius:22px; padding:20px 22px 22px; width:100%; max-width:440px; max-height:90vh; overflow:auto }
 .dialog-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px }
 .dialog-head h3 { margin:0 }
-.bmframe { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:var(--radius); padding:14px 16px; margin:24px 0 8px }
+.bmframe { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:var(--radius); padding:14px 16px; margin:4px 0 18px }
 .bmframe p { margin:2px 0 }
 .bmtext { flex:1; min-width:220px }
 .bmaction { display:flex; align-items:center; gap:10px }
@@ -158,3 +158,10 @@ ol { padding-left:1.2rem } li { margin:4px 0 }
 .auth-btns button{flex:1}
 .page-foot{position:fixed;bottom:12px;left:0;right:0;text-align:center;font:400 .72rem system-ui,sans-serif;color:var(--muted)}
 .hint{margin:0 0 6px;line-height:1.45}
+
+.searchbar{margin-bottom:10px}
+.searchbar input{margin:0;border-radius:14px}
+.rows.compact li{border-radius:16px;margin:10px 0}
+.datebadge{width:46px;height:50px;flex:none;border-radius:12px;background:var(--accent-soft);color:var(--accent-ink);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;font-size:.68rem;text-transform:uppercase;letter-spacing:.03em}
+.datebadge b{font-size:1.15rem;font-weight:600;letter-spacing:0}
+.datebadge.none,.datebadge.past{background:#F3ECE8;color:#6B6070}

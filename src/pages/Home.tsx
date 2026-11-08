@@ -10,7 +10,6 @@ import { daysUntil, firstName, fmtDate, inDays, itemLabel } from '../lib/util'
 
 type Item = { id: string; title: string | null; url: string | null; image_url: string | null }
 type L = { id: string; title: string; occasion: string; event_date: string | null; share_code: string; archived_at: string | null; items: Item[] }
-const VIEW = 'ptite-lists-view'
 const HIDE_CDC = 'ptite-hide-coup-de-coeur'
 const NO_DATE = '__nodate'
 
@@ -37,7 +36,7 @@ export default function Home() {
   const user = useAuth().session!.user
   const [lists, setLists] = useState<L[] | null>(null)
   const [filter, setFilter] = useState('all')
-  const [view, setView] = useState<'cards' | 'rows'>(localStorage.getItem(VIEW) === 'rows' ? 'rows' : 'cards')
+  const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const [profileName, setProfileName] = useState('')
@@ -74,12 +73,14 @@ export default function Home() {
 
   const active = useMemo(() => sortLists((lists ?? []).filter(l => !l.archived_at)), [lists])
   const archived = useMemo(() => sortLists((lists ?? []).filter(l => l.archived_at)), [lists])
-  const visible = active.filter(l => filter === 'all' || (filter === NO_DATE ? !l.event_date : l.occasion === filter))
+  const q = query.trim().toLowerCase()
+  const visible = active
+    .filter(l => filter === 'all' || (filter === NO_DATE ? !l.event_date : l.occasion === filter))
+    .filter(l => !q || l.title.toLowerCase().includes(q))
   const next = active.find(l => (daysUntil(l.event_date) ?? -1) >= 0)
   const occasions = [...new Set(active.map(l => l.occasion))]
   const showFilters = active.length >= 4
 
-  function chooseView(v: 'cards' | 'rows') { setView(v); localStorage.setItem(VIEW, v) }
   function hideFrame() { setHideCdc(true); localStorage.setItem(HIDE_CDC, '1') }
   async function copy(l: L) {
     await navigator.clipboard.writeText(`${window.location.origin}/s/${l.share_code}`)
@@ -176,68 +177,45 @@ export default function Home() {
   return (
     <>
       {hello(next ? `Prochaine date : ${next.title}, ${inDays(daysUntil(next.event_date)!)}` : 'Vos listes d’idées cadeaux')}
+      {frame}
 
-      <div className="toolbar">
-        <div className="chips">
-          {showFilters && <>
-            <button className={`chipbtn${filter === 'all' ? ' on' : ''}`} onClick={() => setFilter('all')}>Toutes · {active.length}</button>
-            {occasions.map(o => <button key={o} className={`chipbtn${filter === o ? ' on' : ''}`} onClick={() => setFilter(o)}>{o}</button>)}
-            {active.some(l => !l.event_date) && <button className={`chipbtn${filter === NO_DATE ? ' on' : ''}`} onClick={() => setFilter(NO_DATE)}>Sans date</button>}
-          </>}
+      {(showFilters || query) && (
+        <div className="searchbar">
+          <input type="search" placeholder="Rechercher une liste" aria-label="Rechercher une liste" value={query} onChange={e => setQuery(e.target.value)} />
         </div>
-        <div className="seg" role="group" aria-label="Affichage">
-          <button className={view === 'cards' ? 'on' : ''} onClick={() => chooseView('cards')} aria-pressed={view === 'cards'}>Cartes</button>
-          <button className={view === 'rows' ? 'on' : ''} onClick={() => chooseView('rows')} aria-pressed={view === 'rows'}>Liste</button>
-        </div>
-      </div>
-
-      {view === 'cards' ? (
-        <div className="cards">
-          {visible.map(l => {
-            const n = l.items.length
-            const shown = l.items.slice(0, n > 4 ? 3 : 4)
-            return (
-              <div key={l.id} className="lcard">
-                <Link to={`/l/${l.id}`} className="lc-main">
-                  <div className="mosaic">
-                    {n === 0 && <div className="empty-note">Aucune idée pour l'instant</div>}
-                    {shown.map(i => <Thumb key={i.id} label={itemLabel(i)} image={i.image_url} fill />)}
-                    {n > 4 && <div className="tile fill more">+{n - 3}</div>}
-                  </div>
-                  <div className="lc-title">{l.title}</div>
-                  <div className="lc-meta"><Pill l={l} /><span className="muted small">{[l.event_date && fmtDate(l.event_date), `${n} idée${n > 1 ? 's' : ''}`].filter(Boolean).join(' · ')}</span></div>
-                </Link>
-                <div className="lc-actions">
-                  <button className="link" onClick={() => copy(l)}>{copied === l.id ? 'Lien copié ✓' : '🔗 Copier le lien'}</button>
-                  <Link to={`/l/${l.id}`} className="open">Ouvrir →</Link>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      ) : (
-        <ul className="rows">
-          {visible.map(l => {
-            const n = l.items.length, first = l.items[0]
-            return (
-              <li key={l.id}>
-                <Link to={`/l/${l.id}`} className="row-main">
-                  <Thumb label={first ? itemLabel(first) : l.title} image={first?.image_url ?? null} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="lc-title" style={{ padding: 0 }}>{l.title}</div>
-                    <div className="muted small">{[l.occasion, l.event_date && fmtDate(l.event_date), `${n} idée${n > 1 ? 's' : ''}`].filter(Boolean).join(' · ')}</div>
-                  </div>
-                  <Pill l={l} />
-                </Link>
-                <button className="link" onClick={() => copy(l)} aria-label={`Copier le lien de ${l.title}`}>{copied === l.id ? 'Copié ✓' : '🔗'}</button>
-              </li>
-            )
-          })}
-        </ul>
       )}
+      {showFilters && (
+        <div className="chips" style={{ marginBottom: 12 }}>
+          <button className={`chipbtn${filter === 'all' ? ' on' : ''}`} onClick={() => setFilter('all')}>Toutes · {active.length}</button>
+          {occasions.map(o => <button key={o} className={`chipbtn${filter === o ? ' on' : ''}`} onClick={() => setFilter(o)}>{o}</button>)}
+          {active.some(l => !l.event_date) && <button className={`chipbtn${filter === NO_DATE ? ' on' : ''}`} onClick={() => setFilter(NO_DATE)}>Sans date</button>}
+        </div>
+      )}
+
+      <ul className="rows compact">
+        {visible.map(l => {
+          const n = l.items.length
+          const d = daysUntil(l.event_date)
+          const dt = l.event_date ? new Date(l.event_date + 'T00:00:00') : null
+          return (
+            <li key={l.id}>
+              <Link to={`/l/${l.id}`} className="row-main">
+                <div className={`datebadge${d === null ? ' none' : d < 0 ? ' past' : ''}`}>
+                  {dt ? <><span>{dt.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')}</span><b>{dt.getDate()}</b></> : <b>·</b>}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="lc-title" style={{ padding: 0 }}>{l.title}</div>
+                  <div className="muted small">{[l.occasion, `${n} idée${n > 1 ? 's' : ''}`].join(' · ')}</div>
+                </div>
+                <Pill l={l} />
+              </Link>
+              <button className="link" onClick={() => copy(l)} aria-label={`Copier le lien de ${l.title}`}>{copied === l.id ? 'Copié ✓' : '🔗'}</button>
+            </li>
+          )
+        })}
+      </ul>
       {visible.length === 0 && <p className="muted">Aucune liste dans cette catégorie.</p>}
 
-      {frame}
       {Archives()}
       {modal}
       {nameModal}
