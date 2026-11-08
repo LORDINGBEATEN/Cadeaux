@@ -6,7 +6,7 @@ import Thumb from '../lib/Thumb'
 import NewListModal from '../lib/NewListModal'
 import BookmarkletButton from '../lib/BookmarkletButton'
 import Modal from '../lib/Modal'
-import { daysUntil, fmtDate, inDays, itemLabel } from '../lib/util'
+import { daysUntil, firstName, fmtDate, inDays, itemLabel } from '../lib/util'
 
 type Item = { id: string; title: string | null; url: string | null; image_url: string | null }
 type L = { id: string; title: string; occasion: string; event_date: string | null; share_code: string; archived_at: string | null; items: Item[] }
@@ -70,7 +70,7 @@ export default function Home() {
   }, [load, nav])
 
   const rawName = profileName || (user.user_metadata?.name as string | undefined) || (user.email ?? '').split('@')[0].split(/[._+-]/)[0]
-  const name = rawName ? rawName.charAt(0).toUpperCase() + rawName.slice(1) : ''
+  const name = firstName(rawName)
 
   const active = useMemo(() => sortLists((lists ?? []).filter(l => !l.archived_at)), [lists])
   const archived = useMemo(() => sortLists((lists ?? []).filter(l => l.archived_at)), [lists])
@@ -103,7 +103,7 @@ export default function Home() {
   const nameModal = editingName && (
     <Modal title="Mon prénom" onClose={() => setEditingName(false)}>
       <form onSubmit={saveName}>
-        <p className="muted small" style={{ marginTop: 0 }}>Il s'affiche dans « Bonjour … » et sur vos listes partagées (« Liste de … »).</p>
+        <p className="muted small" style={{ marginTop: 0 }}>Il s'affiche dans « Bonjour … » et sur vos listes partagées (« Liste de … »). Seul le premier mot est affiché : écrivez « Marie-Claire » avec un tiret.</p>
         <input required autoFocus maxLength={60} placeholder="Votre prénom" value={nameDraft} onChange={e => setNameDraft(e.target.value)} />
         {nameErr && <p className="err">{nameErr}</p>}
         <div className="btnrow" style={{ marginTop: 12 }}>

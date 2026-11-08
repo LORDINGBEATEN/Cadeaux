@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Thumb from '../lib/Thumb'
-import { countdown, fmtDate, fmtPrice, getGuestName, guestToken, hostOf, itemLabel, setGuestName } from '../lib/util'
+import { countdown, firstName, fmtDate, fmtPrice, getGuestName, guestToken, hostOf, itemLabel, setGuestName } from '../lib/util'
 
 type Item = { id: string; title: string | null; url: string | null; note: string | null; price: number | null; currency: string | null; image_url: string | null; claimed: boolean; claimed_by: string | null; mine: boolean }
 type Shared = { title: string; occasion: string; event_date: string | null; owner_name: string | null; is_owner: boolean; items: Item[] }
@@ -40,7 +40,7 @@ export default function SharedList() {
         <h2 style={{ marginBottom: 4 }}>{data.title}</h2>
         <span className="chip">{data.occasion}{data.event_date ? ` · ${fmtDate(data.event_date)}` : ''}</span>
         <p className="muted" style={{ margin: '8px 0 0' }}>
-          {data.owner_name ? `Liste de ${data.owner_name}` : ''}{countdown(data.event_date) ? ` · ${countdown(data.event_date)}` : ''}
+          {data.owner_name ? `Liste de ${firstName(data.owner_name)}` : ''}{countdown(data.event_date) ? ` · ${countdown(data.event_date)}` : ''}
         </p>
       </div>
 

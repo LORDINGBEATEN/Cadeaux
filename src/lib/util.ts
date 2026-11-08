@@ -46,3 +46,9 @@ export function countdown(date: string | null): string | null {
 export function inDays(days: number): string {
   return days === 0 ? "aujourd'hui" : days === 1 ? 'demain' : `dans ${days} jours`
 }
+
+// Prénom à afficher : premier mot du nom (« Benoit Legrand » → « Benoit », « Marie-Claire » reste entier).
+export function firstName(full: string | null | undefined): string {
+  const w = (full ?? '').trim().split(/\s+/)[0] ?? ''
+  return w ? w.charAt(0).toUpperCase() + w.slice(1) : ''
+}
