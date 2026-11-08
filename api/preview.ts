@@ -4,10 +4,10 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 
-const MAX_BYTES = 1_500_000
+const MAX_BYTES = 2_500_000
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
 
-export type Preview = { title: string | null; price: number | null; currency: string | null }
+export type Preview = { title: string | null; price: number | null; currency: string | null; error?: string }
 
 function send(res: ServerResponse, status: number, body: unknown) {
   res.statusCode = status
@@ -126,18 +126,30 @@ export function parsePrice(raw: unknown): number | null {
   return Number.isFinite(v) && v > 0 && v < 10_000_000 ? v : null
 }
 
+// Amazon n'utilise pas les données structurées standard : lecture de son balisage.
+function amazon(html: string): { title: string | null; priceRaw: string | null } {
+  const title = /id="productTitle"[^>]*>([\s\S]*?)<\/span>/i.exec(html)?.[1] ?? null
+  const priceRe = (cls: string) => new RegExp(`class="a-price(?![^"]*a-text-price)[^"]*${cls}[^"]*"[^>]*>\\s*<span class="a-offscreen">([^<]+)</span>`, 'i')
+  const priceRaw = (priceRe('apex-pricetopay-value').exec(html) ?? priceRe('').exec(html))?.[1] ?? null
+  return { title, priceRaw }
+}
+
+const symbolCurrency = (raw: string | null) => (!raw ? null : raw.includes('€') ? 'EUR' : raw.includes('£') ? 'GBP' : raw.includes('$') ? 'USD' : null)
+
 export function extract(html: string): Preview {
   const m = metas(html)
   const product = jsonLdProduct(html)
   const offer = firstOffer(product?.offers)
   const spec = offer?.priceSpecification
   const clean = (t: unknown) => (typeof t === 'string' ? decode(t).replace(/\s+/g, ' ').trim().slice(0, 200) || null : null)
+  const az = amazon(html)
   const pageTitle = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1]
 
-  const title = clean(product?.name) ?? clean(m['og:title']) ?? clean(m['twitter:title']) ?? clean(pageTitle)
+  const title = clean(product?.name) ?? clean(az.title) ?? clean(m['og:title']) ?? clean(m['twitter:title']) ?? clean(pageTitle)
   const price = parsePrice(offer?.price ?? offer?.lowPrice ?? spec?.price ?? (Array.isArray(spec) ? spec[0]?.price : undefined)) ??
-    parsePrice(m['product:price:amount'] ?? m['og:price:amount'] ?? m['product:sale_price:amount'] ?? m['price'])
-  const cur = offer?.priceCurrency ?? spec?.priceCurrency ?? m['product:price:currency'] ?? m['og:price:currency'] ?? m['pricecurrency']
+    parsePrice(m['product:price:amount'] ?? m['og:price:amount'] ?? m['product:sale_price:amount'] ?? m['price']) ??
+    parsePrice(az.priceRaw)
+  const cur = offer?.priceCurrency ?? spec?.priceCurrency ?? m['product:price:currency'] ?? m['og:price:currency'] ?? m['pricecurrency'] ?? symbolCurrency(az.priceRaw)
   const currency = typeof cur === 'string' && /^[A-Za-z]{3}$/.test(cur.trim()) ? cur.trim().toUpperCase() : null
   return { title, price, currency: price !== null ? currency : null }
 }
@@ -161,8 +173,8 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   try { url = new URL(new URL(req.url ?? '', 'http://x').searchParams.get('url') ?? '') } catch { return send(res, 400, { error: 'URL invalide' }) }
   try {
     send(res, 200, await lookupPreview(url))
-  } catch {
+  } catch (e) {
     // Site illisible ou qui bloque les robots : l'utilisateur saisira les infos à la main.
-    send(res, 200, { title: null, price: null, currency: null } satisfies Preview)
+    send(res, 200, { title: null, price: null, currency: null, error: e instanceof Error ? e.message : 'erreur' } satisfies Preview)
   }
 }
