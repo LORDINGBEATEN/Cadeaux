@@ -1,51 +1,54 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { fmtDate } from '../lib/util'
 
-type G = { id: string; name: string; invite_code: string }
+type L = { id: string; title: string; occasion: string; event_date: string | null }
+const OCCASIONS = ['Anniversaire', 'Noël', 'Naissance', 'Mariage', 'Autre']
 
 export default function Home() {
-  const [groups, setGroups] = useState<G[]>([])
-  const [name, setName] = useState('')
-  const [code, setCode] = useState('')
+  const [lists, setLists] = useState<L[]>([])
+  const [title, setTitle] = useState('')
+  const [occasion, setOccasion] = useState(OCCASIONS[0])
+  const [date, setDate] = useState('')
   const [err, setErr] = useState('')
   const nav = useNavigate()
 
-  const load = () => supabase.from('groups').select('*').order('name').then(({ data }) => setGroups(data ?? []))
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    supabase.from('lists').select('id, title, occasion, event_date').order('event_date', { nullsFirst: false })
+      .then(({ data }) => setLists(data ?? []))
+  }, [])
 
   async function create(e: React.FormEvent) {
     e.preventDefault()
-    const { data, error } = await supabase.rpc('create_group', { group_name: name })
+    const { data, error } = await supabase.from('lists')
+      .insert({ title, occasion, event_date: date || null }).select('id').single()
     if (error) return setErr(error.message)
-    nav(`/g/${data}`)
-  }
-  async function join(e: React.FormEvent) {
-    e.preventDefault()
-    const { data, error } = await supabase.rpc('join_group', { code: code.trim() })
-    if (error) return setErr(error.message)
-    nav(`/g/${data}`)
+    nav(`/l/${data.id}`)
   }
 
   return (
     <>
-      <h2>Mes groupes</h2>
-      {groups.length === 0 && <p className="muted">Créez un groupe (famille, amis…) ou rejoignez-en un avec un code.</p>}
+      <h2>Mes listes</h2>
+      {lists.length === 0 && <p className="muted">Vous n'avez pas encore de liste. Créez la première ci-dessous !</p>}
       <ul className="list">
-        {groups.map(g => <li key={g.id}><Link to={`/g/${g.id}`}>👪 {g.name}</Link></li>)}
+        {lists.map(l => (
+          <li key={l.id}>
+            <Link to={`/l/${l.id}`}>
+              {l.title} <span className="muted">— {l.occasion}{l.event_date ? ` · ${fmtDate(l.event_date)}` : ''}</span>
+            </Link>
+          </li>
+        ))}
       </ul>
-      <div className="grid">
-        <form onSubmit={create} className="card">
-          <h3>Créer un groupe</h3>
-          <input required placeholder="Ex : Famille Dupont" value={name} onChange={e => setName(e.target.value)} />
-          <button>Créer</button>
-        </form>
-        <form onSubmit={join} className="card">
-          <h3>Rejoindre un groupe</h3>
-          <input required placeholder="Code d'invitation" value={code} onChange={e => setCode(e.target.value)} />
-          <button>Rejoindre</button>
-        </form>
-      </div>
+      <form onSubmit={create} className="card">
+        <h3>Nouvelle liste</h3>
+        <input required placeholder="Ex : Mes idées pour Noël" value={title} onChange={e => setTitle(e.target.value)} />
+        <div className="row">
+          <select value={occasion} onChange={e => setOccasion(e.target.value)}>{OCCASIONS.map(o => <option key={o}>{o}</option>)}</select>
+          <input type="date" value={date} onChange={e => setDate(e.target.value)} />
+        </div>
+        <button>Créer la liste</button>
+      </form>
       {err && <p className="err">{err}</p>}
     </>
   )

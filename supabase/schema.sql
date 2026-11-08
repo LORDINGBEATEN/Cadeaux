@@ -1,5 +1,6 @@
--- À coller dans Supabase > SQL Editor > Run
--- Schéma dédié : n'interfère pas avec Pousse-Pousse / Jeu-sais (seul auth.users est partagé).
+-- Le p'tit Canif — à coller dans Supabase > SQL Editor > Run
+-- Schéma dédié : n'interfère pas avec les autres applis (seul auth.users est partagé).
+-- Pour repartir de zéro : drop schema app_cadeaux cascade;
 
 create schema if not exists app_cadeaux;
 set search_path = app_cadeaux;
@@ -9,83 +10,40 @@ create table profiles (
   name text not null default 'Sans nom'
 );
 
-create table groups (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  invite_code text not null unique default substr(replace(gen_random_uuid()::text,'-',''),1,10),
-  created_by uuid not null default auth.uid() references auth.users
-);
-
-create table group_members (
-  group_id uuid references groups on delete cascade,
-  user_id uuid references auth.users on delete cascade default auth.uid(),
-  primary key (group_id, user_id)
-);
-
 create table lists (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null default auth.uid() references auth.users on delete cascade,
-  group_id uuid not null references groups on delete cascade,
   title text not null,
   occasion text not null default 'Anniversaire',
-  event_date date
+  event_date date,
+  -- code secret du lien de partage donné aux invités
+  share_code text not null unique
+    default substr(replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''), 1, 16)
 );
 
 create table items (
   id uuid primary key default gen_random_uuid(),
   list_id uuid not null references lists on delete cascade,
-  title text not null,
-  url text,
-  price numeric,
+  title text,
+  url text not null check (url ~* '^https?://'),
   note text,
   created_at timestamptz default now()
 );
 
--- Réservations : INVISIBLES pour le propriétaire de la liste (effet surprise)
+-- Réservations faites par les invités (sans compte). Aucune politique RLS :
+-- seules les fonctions ci-dessous y accèdent, donc le propriétaire ne les voit jamais.
 create table claims (
   item_id uuid primary key references items on delete cascade,
-  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  guest_name text not null check (length(trim(guest_name)) between 1 and 60),
+  guest_token text not null,
   created_at timestamptz default now()
 );
-
--- Fonctions utilitaires (security definer pour éviter la récursion RLS)
-create function is_member(g uuid) returns boolean
-  language sql security definer stable set search_path = app_cadeaux as
-  $$ select exists(select 1 from group_members where group_id = g and user_id = auth.uid()) $$;
-
-create function list_group(l uuid) returns uuid
-  language sql security definer stable set search_path = app_cadeaux as
-  $$ select group_id from lists where id = l $$;
 
 create function list_owner(l uuid) returns uuid
   language sql security definer stable set search_path = app_cadeaux as
   $$ select owner_id from lists where id = l $$;
 
-create function item_list(i uuid) returns uuid
-  language sql security definer stable set search_path = app_cadeaux as
-  $$ select list_id from items where id = i $$;
-
-create function create_group(group_name text) returns uuid
-  language plpgsql security definer set search_path = app_cadeaux as $$
-declare gid uuid;
-begin
-  insert into groups(name) values (group_name) returning id into gid;
-  insert into group_members(group_id, user_id) values (gid, auth.uid());
-  return gid;
-end $$;
-
-create function join_group(code text) returns uuid
-  language plpgsql security definer set search_path = app_cadeaux as $$
-declare gid uuid;
-begin
-  select id into gid from groups where invite_code = code;
-  if gid is null then raise exception 'Code invalide'; end if;
-  insert into group_members(group_id, user_id) values (gid, auth.uid()) on conflict do nothing;
-  return gid;
-end $$;
-
--- Crée le profil à la première connexion à cette appli (les comptes viennent
--- peut-être d'une autre appli : pas de trigger sur auth.users).
+-- Profil créé à la première connexion à cette appli (pas de trigger sur auth.users)
 create function ensure_profile() returns void
   language plpgsql security definer set search_path = app_cadeaux as $$
 declare u record;
@@ -96,44 +54,76 @@ begin
   on conflict (id) do nothing;
 end $$;
 
--- Row Level Security
+-- Page invité : la liste, ses idées et l'état des réservations.
+-- Si c'est le propriétaire qui regarde, les réservations sont masquées.
+create function get_shared_list(code text, token text default null) returns json
+  language plpgsql security definer stable set search_path = app_cadeaux as $$
+declare l lists%rowtype; is_own boolean; res json;
+begin
+  select * into l from lists where share_code = code;
+  if not found then return null; end if;
+  is_own := (auth.uid() is not null and auth.uid() = l.owner_id);
+  select json_build_object(
+    'title', l.title,
+    'occasion', l.occasion,
+    'event_date', l.event_date,
+    'owner_name', (select name from profiles where id = l.owner_id),
+    'is_owner', is_own,
+    'items', coalesce((
+      select json_agg(json_build_object(
+        'id', i.id, 'title', i.title, 'url', i.url, 'note', i.note,
+        'claimed', (not is_own and c.item_id is not null),
+        'claimed_by', case when is_own then null else c.guest_name end,
+        'mine', coalesce(not is_own and token is not null and c.guest_token = token, false)
+      ) order by i.created_at)
+      from items i left join claims c on c.item_id = i.id
+      where i.list_id = l.id), '[]'::json)
+  ) into res;
+  return res;
+end $$;
+
+create function claim_item(code text, item uuid, guest text, token text) returns void
+  language plpgsql security definer set search_path = app_cadeaux as $$
+declare l lists%rowtype;
+begin
+  if length(coalesce(token,'')) < 16 then raise exception 'Jeton invalide'; end if;
+  if length(trim(coalesce(guest,''))) = 0 then raise exception 'Indiquez votre prénom'; end if;
+  select l2.* into l from lists l2 join items i on i.list_id = l2.id
+   where l2.share_code = code and i.id = item;
+  if not found then raise exception 'Idée introuvable'; end if;
+  if auth.uid() = l.owner_id then raise exception 'Vous ne pouvez pas réserver vos propres idées'; end if;
+  begin
+    insert into claims(item_id, guest_name, guest_token) values (item, trim(guest), token);
+  exception when unique_violation then
+    raise exception 'Cette idée est déjà réservée';
+  end;
+end $$;
+
+create function unclaim_item(item uuid, token text) returns void
+  language sql security definer set search_path = app_cadeaux as
+  $$ delete from claims where item_id = item and guest_token = token $$;
+
+-- Row Level Security (propriétaire uniquement)
 alter table profiles enable row level security;
-alter table groups enable row level security;
-alter table group_members enable row level security;
 alter table lists enable row level security;
 alter table items enable row level security;
 alter table claims enable row level security;
 
-create policy "profils visibles par les membres d'un même groupe" on profiles for select using (
-  id = auth.uid() or exists (
-    select 1 from group_members a join group_members b on a.group_id = b.group_id
-    where a.user_id = auth.uid() and b.user_id = profiles.id));
+create policy "voir son profil" on profiles for select using (id = auth.uid());
 create policy "modifier son profil" on profiles for update using (id = auth.uid());
 
-create policy "voir ses groupes" on groups for select using (is_member(id));
-create policy "voir les membres" on group_members for select using (is_member(group_id));
-create policy "quitter un groupe" on group_members for delete using (user_id = auth.uid());
+create policy "gérer ses listes" on lists for all
+  using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 
-create policy "voir les listes du groupe" on lists for select using (is_member(group_id));
-create policy "créer sa liste" on lists for insert with check (owner_id = auth.uid() and is_member(group_id));
-create policy "modifier sa liste" on lists for update using (owner_id = auth.uid());
-create policy "supprimer sa liste" on lists for delete using (owner_id = auth.uid());
+create policy "gérer ses idées" on items for all
+  using (list_owner(list_id) = auth.uid()) with check (list_owner(list_id) = auth.uid());
 
-create policy "voir les cadeaux" on items for select using (is_member(list_group(list_id)));
-create policy "ajouter ses cadeaux" on items for insert with check (list_owner(list_id) = auth.uid());
-create policy "modifier ses cadeaux" on items for update using (list_owner(list_id) = auth.uid());
-create policy "supprimer ses cadeaux" on items for delete using (list_owner(list_id) = auth.uid());
-
-create policy "voir les réservations (sauf les siennes)" on claims for select using (
-  list_owner(item_list(item_id)) <> auth.uid() and is_member(list_group(item_list(item_id))));
-create policy "réserver un cadeau" on claims for insert with check (
-  user_id = auth.uid() and list_owner(item_list(item_id)) <> auth.uid()
-  and is_member(list_group(item_list(item_id))));
-create policy "annuler sa réservation" on claims for delete using (user_id = auth.uid());
-
--- Droits pour l'API (connexion requise ; la RLS protège les données)
+-- Droits API
 revoke all on all tables in schema app_cadeaux from anon, public;
 revoke all on all functions in schema app_cadeaux from anon, public;
-grant usage on schema app_cadeaux to authenticated;
+grant usage on schema app_cadeaux to anon, authenticated;
 grant select, insert, update, delete on all tables in schema app_cadeaux to authenticated;
 grant execute on all functions in schema app_cadeaux to authenticated;
+-- Les invités (non connectés) n'ont accès qu'à ces 3 fonctions :
+grant execute on function get_shared_list(text, text), claim_item(text, uuid, text, text),
+  unclaim_item(uuid, text) to anon;

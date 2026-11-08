@@ -29,10 +29,10 @@ export default function Login() {
 
   return (
     <main className="card">
-      <h1>🎁 Liste cadeaux</h1>
-      <p className="muted">Partagez vos envies avec votre famille et vos amis, sans gâcher la surprise.</p>
+      <h1>🎁 Le p'tit Canif</h1>
+      <p className="muted">Créez vos listes d'idées cadeaux et partagez-les par lien : vos proches réservent, sans gâcher la surprise.</p>
       <form onSubmit={submit}>
-        <input type="text" placeholder="Prénom (nouveau compte)" value={name} onChange={e => setName(e.target.value)} />
+        <input type="text" placeholder="Prénom (pour un nouveau compte)" value={name} onChange={e => setName(e.target.value)} />
         <input type="email" required placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)} />
         <input type="password" placeholder="Mot de passe (facultatif)" value={password} onChange={e => setPassword(e.target.value)} />
         <button>{password ? 'Se connecter / créer le compte' : 'Recevoir un lien de connexion'}</button>
