@@ -35,10 +35,23 @@ export function grab(app: string) {
 
   const title = ((product && product.name) || txt('#productTitle') || meta('og:title') || document.title || '').toString().trim().slice(0, 200)
   const amazonPrice = txt('.apex-pricetopay-value .a-offscreen') || txt('#corePrice_feature_div .a-price:not(.a-text-price) .a-offscreen') || txt('.a-price:not(.a-text-price) .a-offscreen')
+  // Dernier recours : un élément « prix » visible dans la page (on ignore les anciens prix barrés).
+  const domPrice = (): string => {
+    if (amazonPrice) return ''
+    const bad = /old|was|strike|cross|before|ancien|barr|unit|per-/i
+    const els = Array.from(document.querySelectorAll('[itemprop="price"],[data-price],[class*="price" i],[class*="prix" i]'))
+    for (const el of els) {
+      if (bad.test(String(el.className || ''))) continue
+      const raw = el.getAttribute('content') || el.getAttribute('data-price') || el.textContent || ''
+      if (raw.length <= 40 && num(raw)) return raw
+    }
+    return ''
+  }
+  const shownPrice = amazonPrice || domPrice()
   const price = num(offer && (offer.price || offer.lowPrice || (offer.priceSpecification && offer.priceSpecification.price))) ||
-    num(meta('product:price:amount') || meta('og:price:amount') || meta('price')) || num(amazonPrice)
+    num(meta('product:price:amount') || meta('og:price:amount') || meta('price')) || num(shownPrice)
   let cur = String((offer && offer.priceCurrency) || meta('product:price:currency') || meta('og:price:currency') || meta('priceCurrency') || '').toUpperCase()
-  if (!/^[A-Z]{3}$/.test(cur)) cur = amazonPrice.includes('€') ? 'EUR' : amazonPrice.includes('£') ? 'GBP' : amazonPrice.includes('$') ? 'USD' : ''
+  if (!/^[A-Z]{3}$/.test(cur)) cur = shownPrice.includes('€') ? 'EUR' : shownPrice.includes('£') ? 'GBP' : shownPrice.includes('$') ? 'USD' : ''
 
   const landing = document.querySelector('#landingImage') as HTMLImageElement | null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

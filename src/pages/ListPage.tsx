@@ -81,7 +81,7 @@ export default function ListPage() {
       setImage(p.image)
       const found = [p.title, p.price !== null ? fmtPrice(p.price, p.currency) : null].filter(Boolean).join(' · ')
       setHint(found ? `Trouvé : ${found}`
-        : p.error ? `Ce site refuse la lecture automatique (${p.error})${guess ? ' : nom déduit du lien, saisissez le prix.' : ' : saisissez les infos à la main.'}`
+        : p.error ? `Ce site refuse la lecture automatique (${p.error})${guess ? ' : nom déduit du lien, saisissez le prix.' : ' : saisissez les infos à la main.'} Astuce : le bouton « Coup de cœur » lit la page depuis votre navigateur.`
         : 'Infos introuvables sur cette page : saisissez-les à la main.')
     } catch {
       setHint('Recherche impossible : saisissez les infos à la main.')

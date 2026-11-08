@@ -185,7 +185,11 @@ export function extract(html: string, base?: string): Preview {
 
 export async function lookupPreview(url: URL): Promise<Preview> {
   const r = await fetchHtml(url)
-  return extract(r.html, r.url.href)
+  const p = extract(r.html, r.url.href)
+  // Page de défi (Incapsula, Cloudflare, DataDome…) renvoyée à la place du produit.
+  if (!p.title && p.price === null && /_Incapsula_Resource|Incapsula incident|cf-browser-verification|Just a moment|captcha-delivery|datadome|px-captcha/i.test(r.html))
+    throw new Error('protection anti-robot')
+  return p
 }
 
 async function isAuthed(authorization: string): Promise<boolean> {
