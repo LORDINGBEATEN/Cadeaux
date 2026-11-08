@@ -102,15 +102,15 @@ begin
 end $$;
 
 -- Réservations d'une liste, pour son propriétaire uniquement (prénoms, sans le jeton secret).
-create function list_claims(p_list uuid) returns table(item_id uuid, guest_name text)
+create function list_claims(p_list uuid) returns table(item_id uuid, guest_name text, anonymous boolean)
   language sql security definer stable set search_path = app_cadeaux as $$
-  select c.item_id, c.guest_name
+  select c.item_id, c.guest_name, c.anonymous
   from claims c join items i on i.id = c.item_id join lists l on l.id = i.list_id
   where l.id = p_list and l.owner_id = auth.uid()
 $$;
 
 -- Le propriétaire peut réserver au nom de quelqu'un (le jeton est aléatoire : personne ne peut l'annuler côté invité)
-create function owner_claim_item(p_item uuid, guest text) returns void
+create function owner_claim_item(p_item uuid, guest text, anon boolean default false) returns void
   language plpgsql security definer set search_path = app_cadeaux as $$
 begin
   if length(trim(coalesce(guest, ''))) = 0 then raise exception 'Indiquez un prénom'; end if;
@@ -118,8 +118,8 @@ begin
     raise exception 'Idée introuvable';
   end if;
   begin
-    insert into claims(item_id, guest_name, guest_token)
-    values (p_item, left(trim(guest), 60), replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''));
+    insert into claims(item_id, guest_name, guest_token, anonymous)
+    values (p_item, left(trim(guest), 60), replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''), coalesce(anon, false));
   exception when unique_violation then
     raise exception 'Cette idée est déjà réservée';
   end;

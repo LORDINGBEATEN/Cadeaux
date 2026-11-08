@@ -46,6 +46,8 @@ export default function ListPage() {
   const [editingList, setEditingList] = useState(false)
   const [claimFor, setClaimFor] = useState<string | null>(null)
   const [claimName, setClaimName] = useState('')
+  const [claimHide, setClaimHide] = useState(false)
+  const [anonMap, setAnonMap] = useState<Record<string, boolean>>({})
   const [claimErr, setClaimErr] = useState('')
   const [claims, setClaims] = useState<Record<string, string>>({})
   const [hideClaims, setHideClaims] = useState(localStorage.getItem('ptite-hide-claims') === '1')
@@ -61,7 +63,9 @@ export default function ListPage() {
     ])
     setList(l.data); setItems(it.data ?? [])
     const cl = await supabase.rpc('list_claims', { p_list: id })
-    setClaims(Object.fromEntries(((cl.data ?? []) as { item_id: string; guest_name: string }[]).map(c => [c.item_id, c.guest_name])))
+    const rows = (cl.data ?? []) as { item_id: string; guest_name: string; anonymous: boolean }[]
+    setClaims(Object.fromEntries(rows.map(c => [c.item_id, c.guest_name])))
+    setAnonMap(Object.fromEntries(rows.map(c => [c.item_id, c.anonymous])))
   }
   useEffect(() => { load() }, [id])
   useEffect(() => {
@@ -163,7 +167,7 @@ export default function ListPage() {
   }
   async function claimForSomeone(e: React.FormEvent) {
     e.preventDefault(); setClaimErr('')
-    const { error } = await supabase.rpc('owner_claim_item', { p_item: claimFor, guest: claimName })
+    const { error } = await supabase.rpc('owner_claim_item', { p_item: claimFor, guest: claimName, anon: claimHide })
     if (error) return setClaimErr(error.message)
     setClaimFor(null); load()
   }
@@ -259,8 +263,8 @@ export default function ListPage() {
               <div className="muted small">{[i.url ? hostOf(i.url) : 'Sans lien', i.note].filter(Boolean).join(' · ')}</div>
             </div>
             {!hideClaims && (claims[i.id]
-              ? <span className="badge">Réservé par {claims[i.id]}</span>
-              : <button type="button" className="link" onClick={() => { setClaimName(''); setClaimErr(''); setClaimFor(i.id) }}>Réserver pour…</button>)}
+              ? <span className="badge">Réservé par {claims[i.id]}{anonMap[i.id] ? ' (nom caché aux invités)' : ''}</span>
+              : <button type="button" className="link" onClick={() => { setClaimName(''); setClaimHide(false); setClaimErr(''); setClaimFor(i.id) }}>Réserver pour…</button>)}
             {i.price !== null && <div className="price">{fmtPrice(i.price, i.currency)}</div>}
             <div className="imenu">
               <button type="button" className="link" aria-label="Actions" aria-expanded={menuFor === i.id} onClick={() => setMenuFor(m => m === i.id ? null : i.id)}>⋯</button>
@@ -321,6 +325,10 @@ export default function ListPage() {
           <form onSubmit={claimForSomeone}>
             <p className="muted small" style={{ marginTop: 0 }}>« {itemLabel(items.find(x => x.id === claimFor) ?? { title: null, url: null })} » sera marquée comme réservée au nom de la personne indiquée.</p>
             <input required autoFocus maxLength={60} placeholder="Prénom de la personne" value={claimName} onChange={e => setClaimName(e.target.value)} />
+            <label className="check">
+              <input type="checkbox" checked={claimHide} onChange={e => setClaimHide(e.target.checked)} />
+              <span>Cacher ce nom aux invités<br /><small className="muted">Les invités verront simplement « Réservé ». Vous le verrez toujours ici.</small></span>
+            </label>
             {claimErr && <p className="err">{claimErr}</p>}
             <div className="btnrow" style={{ marginTop: 12 }}>
               <button>Réserver</button>
