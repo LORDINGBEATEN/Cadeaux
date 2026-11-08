@@ -15,8 +15,9 @@ function Private() {
   // Si on arrive depuis le bouton sans être connecté (lien magique dans un autre onglet),
   // on garde la fiche en mémoire pour la rouvrir après la connexion.
   useEffect(() => {
-    if (loc.pathname === '/ajouter' && loc.search) localStorage.setItem('ptite-pending-add', JSON.stringify({ search: loc.search, at: Date.now() }))
-  }, [loc.pathname, loc.search])
+    if (!loading && !session && loc.pathname === '/ajouter' && loc.search)
+      localStorage.setItem('ptite-pending-add', JSON.stringify({ search: loc.search, at: Date.now() }))
+  }, [loading, session, loc.pathname, loc.search])
   if (loading) return <main className="card">Chargement…</main>
   if (!session) return <Login />
   return (

@@ -24,6 +24,7 @@ export default function AddFromPage() {
   const [added, setAdded] = useState<{ list: string; listTitle: string } | null>(null)
 
   useEffect(() => {
+    localStorage.removeItem('ptite-pending-add') // la fiche est ouverte : plus rien à reprendre
     supabase.from('lists').select('id, title').order('title').then(({ data }) => {
       const ls = data ?? []
       setLists(ls)
