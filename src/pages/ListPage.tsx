@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Thumb from '../lib/Thumb'
+import NewListModal from '../lib/NewListModal'
 import { fmtDate, fmtPrice, hostOf, itemLabel } from '../lib/util'
 
 type Item = { id: string; title: string | null; url: string; note: string | null; price: number | null; currency: string | null; image_url: string | null }
@@ -41,6 +42,7 @@ export default function ListPage() {
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState({ url: '', title: '', price: '', note: '', image: '' })
   const [editErr, setEditErr] = useState('')
+  const [editingList, setEditingList] = useState(false)
   const [claims, setClaims] = useState<Record<string, string>>({})
   const [hideClaims, setHideClaims] = useState(localStorage.getItem('ptite-hide-claims') === '1')
   const lastLookup = useRef('')
@@ -165,7 +167,10 @@ export default function ListPage() {
   return (
     <>
       <p><Link to="/">← Mes listes</Link></p>
-      <h2>{list.title}</h2>
+      <div className="between" style={{ marginTop: 0 }}>
+        <h2 style={{ margin: 0 }}>{list.title}</h2>
+        <button type="button" className="secondary" onClick={() => setEditingList(true)}>✎ Modifier</button>
+      </div>
       <span className="chip">{list.occasion}{list.event_date ? ` · ${fmtDate(list.event_date)}` : ''}</span>
       {list.archived_at && (
         <div className="note" style={{ marginTop: 12 }}>
@@ -252,6 +257,13 @@ export default function ListPage() {
         {!list.archived_at && <button type="button" className="secondary" onClick={() => setArchived(true)}>📦 Archiver la liste</button>}
         <button type="button" className="link danger" style={{ marginTop: 0 }} onClick={deleteList}>Supprimer la liste</button>
       </div>
+      {editingList && (
+        <NewListModal
+          edit={{ id: id!, title: list.title, occasion: list.occasion, event_date: list.event_date }}
+          onClose={() => setEditingList(false)}
+          onCreated={() => { setEditingList(false); load() }}
+        />
+      )}
     </>
   )
 }
