@@ -1,4 +1,4 @@
--- Le p'tit Canif — à coller dans Supabase > SQL Editor > Run
+-- Ma P'tite Liste — à coller dans Supabase > SQL Editor > Run
 -- Schéma dédié : n'interfère pas avec les autres applis (seul auth.users est partagé).
 -- Pour repartir de zéro : drop schema app_cadeaux cascade;
 

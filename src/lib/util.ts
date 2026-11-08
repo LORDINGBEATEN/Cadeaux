@@ -22,3 +22,19 @@ export function fmtPrice(price: number | null, currency: string | null) {
     return `${price} ${currency ?? ''}`.trim()
   }
 }
+
+export function tile(label: string) {
+  let h = 0
+  for (const c of label) h = (h * 31 + c.charCodeAt(0)) % 4
+  const letter = label.trim().charAt(0).toUpperCase() || '🎁'
+  return { cls: `tile tile-${h}`, letter }
+}
+
+export function countdown(date: string | null): string | null {
+  if (!date) return null
+  const [y, m, d] = date.split('-').map(Number)
+  const days = Math.round((new Date(y, m - 1, d).getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000)
+  if (days < 0) return null
+  if (days === 0) return "c'est aujourd'hui !"
+  return days === 1 ? "plus qu'un jour" : `plus que ${days} jours`
+}

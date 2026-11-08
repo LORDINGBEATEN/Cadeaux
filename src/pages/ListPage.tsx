@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { fmtDate, fmtPrice, itemLabel } from '../lib/util'
+import { fmtDate, fmtPrice, hostOf, itemLabel, tile } from '../lib/util'
 
 type Item = { id: string; title: string | null; url: string; note: string | null; price: number | null; currency: string | null }
 type List = { title: string; occasion: string; event_date: string | null; share_code: string }
@@ -91,9 +91,9 @@ export default function ListPage() {
     <>
       <p><Link to="/">← Mes listes</Link></p>
       <h2>{list.title}</h2>
-      <p className="muted">{list.occasion}{list.event_date ? ` · ${fmtDate(list.event_date)}` : ''}</p>
+      <span className="chip">{list.occasion}{list.event_date ? ` · ${fmtDate(list.event_date)}` : ''}</span>
 
-      <div className="card">
+      <div className="card share">
         <strong>Lien à partager</strong>
         <p className="muted small">Toute personne qui a ce lien peut voir la liste et réserver une idée, sans créer de compte.</p>
         <div className="row"><input readOnly value={link} onFocus={e => e.target.select()} /><button onClick={copy}>{copied ? 'Copié ✓' : 'Copier'}</button></div>
@@ -105,11 +105,12 @@ export default function ListPage() {
       <ul className="items">
         {items.map(i => (
           <li key={i.id}>
+            <div className={tile(itemLabel(i)).cls}>{tile(itemLabel(i)).letter}</div>
             <div>
               <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a>
-              {i.price !== null && <span className="muted"> · {fmtPrice(i.price, i.currency)}</span>}
-              {i.note && <div className="muted small">{i.note}</div>}
+              <div className="muted small">{hostOf(i.url)}{i.note ? ` · ${i.note}` : ''}</div>
             </div>
+            {i.price !== null && <div className="price">{fmtPrice(i.price, i.currency)}</div>}
             <button className="link" onClick={() => remove(i.id)}>Supprimer</button>
           </li>
         ))}

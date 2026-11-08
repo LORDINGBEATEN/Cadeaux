@@ -28,8 +28,9 @@ export default function Login() {
   }
 
   return (
-    <main className="card">
-      <h1>🎁 Le p'tit Canif</h1>
+    <main className="card hero">
+      <span className="mark">🎁</span>
+      <h1>Ma P'tite Liste</h1>
       <p className="muted">Créez vos listes d'idées cadeaux et partagez-les par lien : vos proches réservent, sans gâcher la surprise.</p>
       <form onSubmit={submit}>
         <input type="text" placeholder="Prénom (pour un nouveau compte)" value={name} onChange={e => setName(e.target.value)} />

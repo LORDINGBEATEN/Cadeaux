@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { fmtDate, fmtPrice, getGuestName, guestToken, itemLabel, setGuestName } from '../lib/util'
+import { countdown, fmtDate, fmtPrice, getGuestName, guestToken, hostOf, itemLabel, setGuestName, tile } from '../lib/util'
 
 type Item = { id: string; title: string | null; url: string; note: string | null; price: number | null; currency: string | null; claimed: boolean; claimed_by: string | null; mine: boolean }
 type Shared = { title: string; occasion: string; event_date: string | null; owner_name: string | null; is_owner: boolean; items: Item[] }
@@ -35,8 +35,13 @@ export default function SharedList() {
 
   return (
     <>
-      <h2>{data.title}</h2>
-      <p className="muted">{data.occasion}{data.event_date ? ` · ${fmtDate(data.event_date)}` : ''}{data.owner_name ? ` · liste de ${data.owner_name}` : ''}</p>
+      <div className="center">
+        <h2 style={{ marginBottom: 4 }}>{data.title}</h2>
+        <span className="chip">{data.occasion}{data.event_date ? ` · ${fmtDate(data.event_date)}` : ''}</span>
+        <p className="muted" style={{ margin: '8px 0 0' }}>
+          {data.owner_name ? `Liste de ${data.owner_name}` : ''}{countdown(data.event_date) ? ` · ${countdown(data.event_date)}` : ''}
+        </p>
+      </div>
 
       {data.is_owner
         ? <p className="note">🤫 C'est votre liste : les réservations sont cachées pour garder la surprise.</p>
@@ -50,14 +55,14 @@ export default function SharedList() {
       <ul className="items">
         {data.items.map(i => (
           <li key={i.id} className={i.claimed ? 'taken' : ''}>
+            <div className={tile(itemLabel(i)).cls}>{tile(itemLabel(i)).letter}</div>
             <div>
               <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a>
-              {i.price !== null && <span className="muted"> · {fmtPrice(i.price, i.currency)}</span>}
-              {i.note && <div className="muted small">{i.note}</div>}
+              <div className="muted small">{[i.price !== null ? fmtPrice(i.price, i.currency) : null, hostOf(i.url), i.note].filter(Boolean).join(' · ')}</div>
             </div>
             <div className="actions">
               {data.is_owner ? null
-                : i.mine ? <button className="secondary" onClick={() => unclaim(i.id)}>Annuler ma réservation</button>
+                : i.mine ? <><span className="badge mine">Réservé par vous</span><button className="link" onClick={() => unclaim(i.id)}>Annuler</button></>
                 : i.claimed ? <span className="badge">Réservé par {i.claimed_by}</span>
                 : <button onClick={() => claim(i.id)}>Je l'offre</button>}
             </div>

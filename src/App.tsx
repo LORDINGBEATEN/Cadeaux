@@ -13,7 +13,7 @@ function Private() {
   return (
     <>
       <header>
-        <Link to="/" className="logo">🎁 Le p'tit Canif</Link>
+        <Link to="/" className="logo"><span className="mark">🎁</span>Ma P'tite Liste</Link>
         <button className="link" onClick={() => supabase.auth.signOut()}>Déconnexion</button>
       </header>
       <main>
@@ -39,7 +39,7 @@ export default function App() {
     <Routes>
       {/* Page publique pour les invités : aucun compte nécessaire */}
       <Route path="/s/:code" element={<>
-        <header><span className="logo">🎁 Le p'tit Canif</span></header>
+        <header><span className="logo"><span className="mark">🎁</span>Ma P'tite Liste</span></header>
         <main><SharedList /></main>
       </>} />
       <Route path="*" element={<Private />} />

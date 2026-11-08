@@ -1,4 +1,4 @@
-# 🎁 Le p'tit Canif
+# 🎁 Ma P'tite Liste
 
 Application gratuite de listes de cadeaux :
 
