@@ -54,12 +54,26 @@ export function grab(app: string) {
   if (!/^[A-Z]{3}$/.test(cur)) cur = shownPrice.includes('€') ? 'EUR' : shownPrice.includes('£') ? 'GBP' : shownPrice.includes('$') ? 'USD' : ''
 
   const landing = document.querySelector('#landingImage') as HTMLImageElement | null
+  // Dernier recours : la plus grande photo visible (hors logos, icônes et pictogrammes).
+  const biggestImage = (): string => {
+    let best = '', area = 0
+    document.querySelectorAll('img').forEach(im => {
+      const src = im.currentSrc || im.getAttribute('data-src') || im.getAttribute('data-original') || im.getAttribute('data-lazy-src') || im.src
+      if (!src || /^data:/i.test(src) || /logo|icon|sprite|avatar|flag|payment|pixel|tracking|placeholder|\.svg(\?|$)/i.test(src)) return
+      const r = im.getBoundingClientRect()
+      if (r.width < 150 || r.height < 150) return
+      if (r.width * r.height > area) { area = r.width * r.height; best = src }
+    })
+    return best
+  }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let img: any = product && product.image
   if (Array.isArray(img)) img = img[0]
   if (img && typeof img === 'object') img = img.url || img.contentUrl
-  img = img || meta('og:image:secure_url') || meta('og:image') || meta('twitter:image') ||
-    (landing && (landing.getAttribute('data-old-hires') || landing.src)) || ''
+  img = img || meta('og:image:secure_url') || meta('og:image') || meta('og:image:url') || meta('twitter:image') || meta('twitter:image:src') ||
+    (document.querySelector('link[rel="image_src"]') as HTMLLinkElement | null)?.href ||
+    (document.querySelector('img[itemprop="image"]') as HTMLImageElement | null)?.src ||
+    (landing && (landing.getAttribute('data-old-hires') || landing.src)) || biggestImage() || ''
   let image = ''
   try { image = img ? new URL(String(img), location.href).href.replace(/^http:/, 'https:') : '' } catch { /* ignoré */ }
 
@@ -68,7 +82,7 @@ export function grab(app: string) {
   if (title) p.set('t', title)
   if (price) p.set('p', price)
   if (price && cur) p.set('c', cur)
-  if (image && image.length < 1500) p.set('i', image)
+  if (image && image.length <= 2000) p.set('i', image)
   window.open(app + '/ajouter?' + p.toString(), '_blank')
 }
 
