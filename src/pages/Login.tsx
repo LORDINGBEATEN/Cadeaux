@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { VERSION } from '../lib/Brand'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -30,7 +31,8 @@ export default function Login() {
   return (
     <main className="card hero">
       <span className="mark">🎁</span>
-      <h1>Ma P'tite Liste</h1>
+      <h1 style={{ marginBottom: 0 }}>Ma P'tite Liste</h1>
+      <small className="ver">{VERSION}</small>
       <p className="muted">Créez vos listes d'idées cadeaux et partagez-les par lien : vos proches réservent, sans doublons.</p>
       <form onSubmit={submit}>
         <input type="text" placeholder="Prénom (pour un nouveau compte)" value={name} onChange={e => setName(e.target.value)} />

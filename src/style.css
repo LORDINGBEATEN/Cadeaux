@@ -138,3 +138,6 @@ ol { padding-left:1.2rem } li { margin:4px 0 }
 
 .claimrow { display:flex; align-items:center; gap:6px; margin-top:4px; flex-wrap:wrap }
 .claimrow .link { font-size:.82rem; padding-left:2px }
+
+.brandtext { display:flex; flex-direction:column; line-height:1.15 }
+.ver { font:400 .72rem system-ui,sans-serif; color:var(--muted); letter-spacing:.02em }

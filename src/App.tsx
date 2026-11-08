@@ -7,6 +7,7 @@ import Home from './pages/Home'
 import ListPage from './pages/ListPage'
 import SharedList from './pages/SharedList'
 import Bookmark from './pages/Bookmark'
+import Brand from './lib/Brand'
 import AddFromPage from './pages/AddFromPage'
 
 function Private() {
@@ -23,7 +24,7 @@ function Private() {
   return (
     <>
       <header>
-        <Link to="/" className="logo"><span className="mark">🎁</span>Ma P'tite Liste</Link>
+        <Link to="/" className="logo"><Brand /></Link>
         <span><Link to="/coup-de-coeur" className="navlink">💝 Coup de cœur</Link><button className="link" onClick={() => supabase.auth.signOut()}>Déconnexion</button></span>
       </header>
       <main>
@@ -52,7 +53,7 @@ export default function App() {
     <Routes>
       {/* Page publique pour les invités : aucun compte nécessaire */}
       <Route path="/s/:code" element={<>
-        <header><span className="logo"><span className="mark">🎁</span>Ma P'tite Liste</span></header>
+        <header><span className="logo"><Brand /></span></header>
         <main><SharedList /></main>
       </>} />
       <Route path="*" element={<Private />} />
