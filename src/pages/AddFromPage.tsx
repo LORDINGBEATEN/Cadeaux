@@ -33,7 +33,7 @@ export default function AddFromPage() {
   useEffect(() => {
     localStorage.removeItem('ptite-pending-add') // la fiche est ouverte : plus rien à reprendre
     if (validUrl) localStorage.setItem('ptite-bm-version', String(ver))
-    supabase.from('lists').select('id, title').order('title').then(({ data }) => {
+    supabase.from('lists').select('id, title').is('archived_at', null).order('title').then(({ data }) => {
       const ls = data ?? []
       setLists(ls)
       const last = localStorage.getItem(LAST)
