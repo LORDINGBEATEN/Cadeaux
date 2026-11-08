@@ -42,6 +42,7 @@ create table claims (
   item_id uuid primary key references items on delete cascade,
   guest_name text not null check (length(trim(guest_name)) between 1 and 60),
   guest_token text not null,
+  anonymous boolean not null default false,
   created_at timestamptz default now()
 );
 
@@ -88,7 +89,10 @@ begin
         'id', i.id, 'title', i.title, 'url', i.url, 'note', i.note,
         'price', i.price, 'currency', i.currency, 'image_url', i.image_url,
         'claimed', (c.item_id is not null),
-        'claimed_by', c.guest_name,
+        'claimed_by', case when c.item_id is null then null
+                           when is_own or not c.anonymous or (token is not null and c.guest_token = token) then c.guest_name
+                           else null end,
+        'anonymous', coalesce(c.anonymous, false),
         'mine', coalesce(not is_own and token is not null and c.guest_token = token, false)
       ) order by i.created_at)
       from items i left join claims c on c.item_id = i.id
@@ -128,7 +132,7 @@ create function owner_unclaim_item(p_item uuid) returns void
     select 1 from items i join lists l on l.id = i.list_id where i.id = p_item and l.owner_id = auth.uid())
 $$;
 
-create function claim_item(code text, item uuid, guest text, token text) returns void
+create function claim_item(code text, item uuid, guest text, token text, anon boolean default false) returns void
   language plpgsql security definer set search_path = app_cadeaux as $$
 declare l lists%rowtype;
 begin
@@ -139,7 +143,7 @@ begin
   if not found then raise exception 'Idée introuvable'; end if;
   if auth.uid() = l.owner_id then raise exception 'Vous ne pouvez pas réserver vos propres idées'; end if;
   begin
-    insert into claims(item_id, guest_name, guest_token) values (item, trim(guest), token);
+    insert into claims(item_id, guest_name, guest_token, anonymous) values (item, trim(guest), token, coalesce(anon, false));
   exception when unique_violation then
     raise exception 'Cette idée est déjà réservée';
   end;
@@ -171,5 +175,5 @@ grant usage on schema app_cadeaux to anon, authenticated;
 grant select, insert, update, delete on all tables in schema app_cadeaux to authenticated;
 grant execute on all functions in schema app_cadeaux to authenticated;
 -- Les invités (non connectés) n'ont accès qu'à ces 3 fonctions :
-grant execute on function get_shared_list(text, text), claim_item(text, uuid, text, text),
+grant execute on function get_shared_list(text, text), claim_item(text, uuid, text, text, boolean),
   unclaim_item(uuid, text) to anon;

@@ -208,3 +208,8 @@ ol { padding-left:1.2rem } li { margin:4px 0 }
 .imenu{position:relative}
 .imenu .profile-menu{top:34px;min-width:190px}
 .items.irows li{border-radius:14px}
+.check{display:flex;align-items:flex-start;gap:10px;margin:14px 0 0;cursor:pointer}
+.check input{width:auto;margin:3px 0 0}
+.items li.taken{position:relative;overflow:hidden;background:#F6F1EE}
+.items li.taken > div:first-of-type,.items li.taken .tile,.items li.taken img{opacity:.5;filter:grayscale(1)}
+.items li.taken::after{content:"Réservé";position:absolute;top:13px;left:-30px;width:110px;text-align:center;transform:rotate(-38deg);background:#5B4F58;color:#fff;font-size:.62rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:3px 0;pointer-events:none}
