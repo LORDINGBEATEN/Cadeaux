@@ -16,6 +16,12 @@ function titleFromUrl(url: string): string | null {
     return t ? t.charAt(0).toUpperCase() + t.slice(1) : null
   } catch { return null }
 }
+type Preview = { title: string | null; price: number | null; currency: string | null; image: string | null; error?: string }
+async function fetchPreview(url: string): Promise<Preview> {
+  const { data: { session } } = await supabase.auth.getSession()
+  const r = await fetch(`/api/preview?url=${encodeURIComponent(url)}`, { headers: { Authorization: `Bearer ${session?.access_token}` } })
+  return r.json()
+}
 const EMPTY = { url: '', title: '', price: '', note: '' }
 
 export default function ListPage() {
@@ -30,6 +36,8 @@ export default function ListPage() {
   const [hint, setHint] = useState('')
   const [err, setErr] = useState('')
   const [copied, setCopied] = useState(false)
+  const [refreshMsg, setRefreshMsg] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
   const lastLookup = useRef('')
 
   async function load() {
@@ -53,9 +61,7 @@ export default function ListPage() {
     lastLookup.current = url
     setSearching(true); setHint('')
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const r = await fetch(`/api/preview?url=${encodeURIComponent(url)}`, { headers: { Authorization: `Bearer ${session?.access_token}` } })
-      const p: { title: string | null; price: number | null; currency: string | null; image: string | null; error?: string } = await r.json()
+      const p = await fetchPreview(url)
       const guess = p.title ? null : titleFromUrl(url)
       setF(cur => ({ ...cur, title: cur.title || p.title || guess || '', price: cur.price || (p.price !== null ? String(p.price) : '') }))
       if (p.price !== null) setCurrency(p.currency)
@@ -81,6 +87,39 @@ export default function ListPage() {
     if (error) return setErr('Lien invalide : ' + error.message)
     setF(EMPTY); setCurrency(null); setImage(null); setHint(''); lastLookup.current = ''; load()
   }
+  // Relit les liens déjà ajoutés et complète ce qui manque, sans écraser l'existant.
+  async function refresh() {
+    const todo = items.filter(i => !i.image_url || i.price === null || !i.title)
+    if (todo.length === 0) return setRefreshMsg('Tout est déjà à jour.')
+    setRefreshing(true)
+    let done = 0, updated = 0
+    const say = () => setRefreshMsg(`Actualisation… ${done}/${todo.length}`)
+    say()
+    const queue = [...todo]
+    const worker = async () => {
+      let it: Item | undefined
+      while ((it = queue.shift())) {
+        try {
+          const p = await fetchPreview(it.url)
+          const patch: Partial<Item> = {}
+          if (!it.title && p.title) patch.title = p.title
+          if (!it.image_url && p.image) patch.image_url = p.image
+          if (it.price === null && p.price !== null) { patch.price = p.price; patch.currency = p.currency || 'EUR' }
+          if (Object.keys(patch).length > 0) {
+            const { error } = await supabase.from('items').update(patch).eq('id', it.id)
+            if (!error) updated++
+          }
+        } catch { /* lien illisible : on passe au suivant */ }
+        done++; say()
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(3, todo.length) }, worker))
+    await load()
+    setRefreshing(false)
+    setRefreshMsg(updated > 0
+      ? `${updated} idée${updated > 1 ? 's' : ''} complétée${updated > 1 ? 's' : ''}. Les autres sont sur des sites qui bloquent la lecture.`
+      : 'Rien de nouveau trouvé : ces sites bloquent la lecture automatique.')
+  }
   async function remove(itemId: string) { await supabase.from('items').delete().eq('id', itemId); load() }
   async function deleteList() {
     if (!confirm('Supprimer cette liste et ses idées ?')) return
@@ -104,7 +143,11 @@ export default function ListPage() {
         <p className="note">🤫 Vous ne verrez pas qui a réservé quoi : la surprise reste entière !</p>
       </div>
 
-      <h3>Mes idées</h3>
+      <div className="between">
+        <h3 style={{ margin: 0 }}>Mes idées</h3>
+        {items.length > 0 && <button type="button" className="secondary" onClick={refresh} disabled={refreshing}>↻ Actualiser les infos</button>}
+      </div>
+      {refreshMsg && <p className="muted small">{refreshMsg}</p>}
       {items.length === 0 && <p className="muted">Collez ci-dessous des liens vers des pages web qui montrent vos idées de cadeaux.</p>}
       <ul className="items">
         {items.map(i => (

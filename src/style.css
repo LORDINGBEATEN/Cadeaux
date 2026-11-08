@@ -50,6 +50,8 @@ button.danger { color:#B3372A; margin-top:16px }
 .items li a:hover { text-decoration:underline }
 .items li.taken .tile { opacity:.6 }
 .actions { display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end }
+.between { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:20px }
+.between button { padding:7px 14px; font-size:.9rem }
 .it-preview { display:flex; align-items:center; gap:12px; margin:6px 0 }
 .price { font-weight:600; white-space:nowrap }
 
