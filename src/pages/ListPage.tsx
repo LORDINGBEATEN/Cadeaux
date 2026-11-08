@@ -6,7 +6,7 @@ import NewListModal from '../lib/NewListModal'
 import Modal from '../lib/Modal'
 import { fmtDate, fmtPrice, hostOf, itemLabel } from '../lib/util'
 
-type Item = { id: string; title: string | null; url: string; note: string | null; price: number | null; currency: string | null; image_url: string | null }
+type Item = { id: string; title: string | null; url: string | null; note: string | null; price: number | null; currency: string | null; image_url: string | null }
 type List = { title: string; occasion: string; event_date: string | null; share_code: string; archived_at: string | null }
 // Nom approximatif déduit de l'adresse, quand la page ne peut pas être lue.
 function titleFromUrl(url: string): string | null {
@@ -92,17 +92,17 @@ export default function ListPage() {
     e.preventDefault(); setErr('')
     const price = f.price ? Number(f.price.replace(',', '.')) : null
     const { error } = await supabase.from('items').insert({
-      list_id: id, url: normalize(f.url), title: f.title.trim() || null, note: f.note.trim() || null,
+      list_id: id, url: normalize(f.url) || null, title: f.title.trim() || null, note: f.note.trim() || null,
       price: price !== null && Number.isFinite(price) ? price : null,
       currency: price !== null ? currency || 'EUR' : null,
       image_url: image,
     })
-    if (error) return setErr('Lien invalide : ' + error.message)
+    if (error) return setErr('Ajout impossible : ' + error.message)
     setF(EMPTY); setCurrency(null); setImage(null); setHint(''); lastLookup.current = ''; load()
   }
   // Relit les liens déjà ajoutés et complète ce qui manque, sans écraser l'existant.
   async function refresh() {
-    const todo = items.filter(i => !i.image_url || i.price === null || !i.title)
+    const todo = items.filter(i => i.url && (!i.image_url || i.price === null || !i.title))
     if (todo.length === 0) return setRefreshMsg('Tout est déjà à jour.')
     setRefreshing(true)
     let done = 0, updated = 0
@@ -113,7 +113,7 @@ export default function ListPage() {
       let it: Item | undefined
       while ((it = queue.shift())) {
         try {
-          const p = await fetchPreview(it.url)
+          const p = await fetchPreview(it.url!)
           const patch: Partial<Item> = {}
           if (!it.title && p.title) patch.title = p.title
           if (!it.image_url && p.image) patch.image_url = p.image
@@ -135,7 +135,7 @@ export default function ListPage() {
   }
   function startEdit(i: Item) {
     setEditErr('')
-    setDraft({ url: i.url, title: i.title ?? '', price: i.price !== null ? String(i.price) : '', note: i.note ?? '', image: i.image_url ?? '' })
+    setDraft({ url: i.url ?? '', title: i.title ?? '', price: i.price !== null ? String(i.price) : '', note: i.note ?? '', image: i.image_url ?? '' })
     setEditing(i.id)
   }
   async function saveEdit(e: React.FormEvent) {
@@ -146,7 +146,7 @@ export default function ListPage() {
     if (price !== null && !Number.isFinite(price)) return setEditErr('Prix invalide')
     const cur = items.find(x => x.id === editing)
     const { error } = await supabase.from('items').update({
-      url: normalize(draft.url), title: draft.title.trim() || null, note: draft.note.trim() || null,
+      url: normalize(draft.url) || null, title: draft.title.trim() || null, note: draft.note.trim() || null,
       price, currency: price !== null ? cur?.currency || 'EUR' : null, image_url: img || null,
     }).eq('id', editing)
     if (error) return setEditErr('Modification impossible : ' + error.message)
@@ -211,14 +211,14 @@ export default function ListPage() {
         {items.length > 0 && <button type="button" className="secondary" onClick={refresh} disabled={refreshing}>↻ Actualiser les infos</button>}
       </div>
       {refreshMsg && <p className="muted small">{refreshMsg}</p>}
-      {items.length === 0 && <p className="muted">Collez ci-dessous des liens vers des pages web qui montrent vos idées de cadeaux.</p>}
+      {items.length === 0 && <p className="muted">Ajoutez ci-dessous vos idées : avec un lien vers une page web, ou simplement un nom.</p>}
       <ul className="items">
         {items.map(i => editing === i.id ? (
           <li key={i.id} className="editing">
             <form onSubmit={saveEdit}>
-              <input required placeholder="Lien de la page web" value={draft.url} onChange={e => setDraft({ ...draft, url: e.target.value })} />
+              <input placeholder="Lien de la page web (facultatif)" value={draft.url} onChange={e => setDraft({ ...draft, url: e.target.value })} />
               <div className="row">
-                <input placeholder="Nom" value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} />
+                <input required={!draft.url.trim()} placeholder="Nom" value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} />
                 <input inputMode="decimal" placeholder="Prix" value={draft.price} onChange={e => setDraft({ ...draft, price: e.target.value })} style={{ maxWidth: 110 }} />
               </div>
               <input placeholder="Note : taille, couleur… (facultatif)" value={draft.note} onChange={e => setDraft({ ...draft, note: e.target.value })} />
@@ -234,8 +234,8 @@ export default function ListPage() {
           <li key={i.id} className={claims[i.id] && !hideClaims ? 'taken' : ''}>
             <Thumb label={itemLabel(i)} image={i.image_url} />
             <div>
-              <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a>
-              <div className="muted small">{hostOf(i.url)}{i.note ? ` · ${i.note}` : ''}</div>
+              {i.url ? <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a> : <strong>{itemLabel(i)}</strong>}
+              <div className="muted small">{[i.url ? hostOf(i.url) : 'Sans lien', i.note].filter(Boolean).join(' · ')}</div>
               {!hideClaims && (
                 <div className="claimrow">
                   {claims[i.id]
@@ -255,7 +255,8 @@ export default function ListPage() {
 
       <form onSubmit={addItem} className="card">
         <h3>Ajouter une idée</h3>
-        <input required placeholder="Lien de la page web (https://…)" value={f.url}
+        <p className="muted small" style={{ margin: '-4px 0 4px' }}>Collez un lien pour remplir le nom, le prix et la photo, ou saisissez simplement un nom.</p>
+        <input placeholder="Lien de la page web (https://…), facultatif" value={f.url}
           onChange={e => setF({ ...f, url: e.target.value })}
           onBlur={e => lookup(e.target.value)}
           onPaste={e => { const t = e.clipboardData.getData('text'); setTimeout(() => lookup(t), 0) }} />
@@ -267,7 +268,7 @@ export default function ListPage() {
           </div>
         )}
         <div className="row">
-          <input placeholder="Nom" value={f.title} onChange={e => setF({ ...f, title: e.target.value })} />
+          <input required={!f.url.trim()} placeholder="Nom de l'idée" value={f.title} onChange={e => setF({ ...f, title: e.target.value })} />
           <input inputMode="decimal" placeholder="Prix" value={f.price} onChange={e => setF({ ...f, price: e.target.value })} style={{ maxWidth: 110 }} />
         </div>
         <input placeholder="Note : taille, couleur… (facultatif)" value={f.note} onChange={e => setF({ ...f, note: e.target.value })} />
@@ -288,7 +289,7 @@ export default function ListPage() {
       {claimFor && (
         <Modal title="Réserver pour quelqu'un" onClose={() => setClaimFor(null)}>
           <form onSubmit={claimForSomeone}>
-            <p className="muted small" style={{ marginTop: 0 }}>« {itemLabel(items.find(x => x.id === claimFor) ?? { title: null, url: '' })} » sera marquée comme réservée au nom de la personne indiquée.</p>
+            <p className="muted small" style={{ marginTop: 0 }}>« {itemLabel(items.find(x => x.id === claimFor) ?? { title: null, url: null })} » sera marquée comme réservée au nom de la personne indiquée.</p>
             <input required autoFocus maxLength={60} placeholder="Prénom de la personne" value={claimName} onChange={e => setClaimName(e.target.value)} />
             {claimErr && <p className="err">{claimErr}</p>}
             <div className="btnrow" style={{ marginTop: 12 }}>

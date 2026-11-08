@@ -7,7 +7,7 @@ import NewListModal from '../lib/NewListModal'
 import BookmarkletButton from '../lib/BookmarkletButton'
 import { daysUntil, fmtDate, inDays, itemLabel } from '../lib/util'
 
-type Item = { id: string; title: string | null; url: string; image_url: string | null }
+type Item = { id: string; title: string | null; url: string | null; image_url: string | null }
 type L = { id: string; title: string; occasion: string; event_date: string | null; share_code: string; archived_at: string | null; items: Item[] }
 const VIEW = 'ptite-lists-view'
 const HIDE_CDC = 'ptite-hide-coup-de-coeur'

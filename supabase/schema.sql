@@ -26,12 +26,14 @@ create table items (
   id uuid primary key default gen_random_uuid(),
   list_id uuid not null references lists on delete cascade,
   title text,
-  url text not null check (url ~* '^https?://'),
+  url text check (url ~* '^https?://'),
   note text,
   price numeric,
   currency text,
   image_url text check (image_url ~* '^https?://' and length(image_url) <= 2000),
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  -- une idée a un lien, un nom, ou les deux
+  constraint items_url_or_title check (url is not null or length(trim(coalesce(title, ''))) > 0)
 );
 
 -- Réservations faites par les invités (sans compte). Aucune politique RLS : seules les fonctions

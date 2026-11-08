@@ -1,7 +1,7 @@
 export const hostOf = (url: string) => {
   try { return new URL(url).hostname.replace(/^www\./, '') } catch { return url }
 }
-export const itemLabel = (i: { title: string | null; url: string }) => i.title?.trim() || hostOf(i.url)
+export const itemLabel = (i: { title: string | null; url: string | null }) => i.title?.trim() || (i.url ? hostOf(i.url) : 'Idée')
 export const fmtDate = (d: string | null) => (d ? new Date(d).toLocaleDateString('fr-FR') : '')
 
 const TOKEN_KEY = 'ptit-canif-guest-token'

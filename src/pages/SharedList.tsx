@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import Thumb from '../lib/Thumb'
 import { countdown, fmtDate, fmtPrice, getGuestName, guestToken, hostOf, itemLabel, setGuestName } from '../lib/util'
 
-type Item = { id: string; title: string | null; url: string; note: string | null; price: number | null; currency: string | null; image_url: string | null; claimed: boolean; claimed_by: string | null; mine: boolean }
+type Item = { id: string; title: string | null; url: string | null; note: string | null; price: number | null; currency: string | null; image_url: string | null; claimed: boolean; claimed_by: string | null; mine: boolean }
 type Shared = { title: string; occasion: string; event_date: string | null; owner_name: string | null; is_owner: boolean; items: Item[] }
 
 export default function SharedList() {
@@ -58,8 +58,8 @@ export default function SharedList() {
           <li key={i.id} className={i.claimed ? 'taken' : ''}>
             <Thumb label={itemLabel(i)} image={i.image_url} />
             <div>
-              <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a>
-              <div className="muted small">{[i.price !== null ? fmtPrice(i.price, i.currency) : null, hostOf(i.url), i.note].filter(Boolean).join(' · ')}</div>
+              {i.url ? <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a> : <strong>{itemLabel(i)}</strong>}
+              <div className="muted small">{[i.price !== null ? fmtPrice(i.price, i.currency) : null, i.url ? hostOf(i.url) : null, i.note].filter(Boolean).join(' · ')}</div>
             </div>
             <div className="actions">
               {data.is_owner ? (i.claimed ? <span className="badge">Réservé par {i.claimed_by}</span> : null)

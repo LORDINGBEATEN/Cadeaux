@@ -3,7 +3,7 @@
 Application gratuite de listes de cadeaux :
 
 1. Vous créez un compte et des listes (anniversaire, Noël…).
-2. Vous y collez des **liens vers des pages web** qui montrent vos idées de cadeaux.
+2. Vous y ajoutez vos idées : des **liens vers des pages web** (nom, prix et photo récupérés quand c'est possible) ou de simples noms.
 3. Vous partagez le **lien de la liste** : vos proches (sans compte) réservent une idée en indiquant leur prénom.
 4. Vous voyez qui a réservé quoi (et pouvez masquer les réservations pour garder la surprise).
 
