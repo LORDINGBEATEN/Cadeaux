@@ -5,7 +5,7 @@ Application gratuite de listes de cadeaux :
 1. Vous créez un compte et des listes (anniversaire, Noël…).
 2. Vous y collez des **liens vers des pages web** qui montrent vos idées de cadeaux.
 3. Vous partagez le **lien de la liste** : vos proches (sans compte) réservent une idée en indiquant leur prénom.
-4. Vous ne voyez **pas** qui a réservé quoi : la surprise reste entière.
+4. Vous voyez qui a réservé quoi (et pouvez masquer les réservations pour garder la surprise).
 
 ## Mise en route
 
@@ -26,4 +26,4 @@ Dans Supabase > Authentication > URL Configuration, ajoutez l'adresse Vercel aux
 
 ## Sécurité
 
-Les invités n'ont accès (clé publique) qu'à trois fonctions : voir une liste via son code secret, réserver, annuler *leur* réservation (identifiée par un jeton stocké dans leur navigateur). Les tables ne sont accessibles qu'au propriétaire connecté.
+Les invités n'ont accès (clé publique) qu'à trois fonctions : voir une liste via son code secret, réserver, annuler *leur* réservation (identifiée par un jeton stocké dans leur navigateur). Les tables ne sont accessibles qu'au propriétaire connecté, qui voit les prénoms des réservations mais jamais le jeton secret des invités.

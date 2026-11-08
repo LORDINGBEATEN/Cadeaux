@@ -34,8 +34,8 @@ create table items (
   created_at timestamptz default now()
 );
 
--- Réservations faites par les invités (sans compte). Aucune politique RLS :
--- seules les fonctions ci-dessous y accèdent, donc le propriétaire ne les voit jamais.
+-- Réservations faites par les invités (sans compte). Aucune politique RLS : seules les fonctions
+-- ci-dessous y accèdent (le jeton secret de l'invité n'est jamais exposé, même au propriétaire).
 create table claims (
   item_id uuid primary key references items on delete cascade,
   guest_name text not null check (length(trim(guest_name)) between 1 and 60),
@@ -59,7 +59,6 @@ begin
 end $$;
 
 -- Page invité : la liste, ses idées et l'état des réservations.
--- Si c'est le propriétaire qui regarde, les réservations sont masquées.
 create function get_shared_list(code text, token text default null) returns json
   language plpgsql security definer stable set search_path = app_cadeaux as $$
 declare l lists%rowtype; is_own boolean; res json;
@@ -77,8 +76,8 @@ begin
       select json_agg(json_build_object(
         'id', i.id, 'title', i.title, 'url', i.url, 'note', i.note,
         'price', i.price, 'currency', i.currency, 'image_url', i.image_url,
-        'claimed', (not is_own and c.item_id is not null),
-        'claimed_by', case when is_own then null else c.guest_name end,
+        'claimed', (c.item_id is not null),
+        'claimed_by', c.guest_name,
         'mine', coalesce(not is_own and token is not null and c.guest_token = token, false)
       ) order by i.created_at)
       from items i left join claims c on c.item_id = i.id
@@ -86,6 +85,14 @@ begin
   ) into res;
   return res;
 end $$;
+
+-- Réservations d'une liste, pour son propriétaire uniquement (prénoms, sans le jeton secret).
+create function list_claims(p_list uuid) returns table(item_id uuid, guest_name text)
+  language sql security definer stable set search_path = app_cadeaux as $$
+  select c.item_id, c.guest_name
+  from claims c join items i on i.id = c.item_id join lists l on l.id = i.list_id
+  where l.id = p_list and l.owner_id = auth.uid()
+$$;
 
 create function claim_item(code text, item uuid, guest text, token text) returns void
   language plpgsql security definer set search_path = app_cadeaux as $$

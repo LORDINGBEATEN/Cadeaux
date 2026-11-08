@@ -31,7 +31,7 @@ export default function Login() {
     <main className="card hero">
       <span className="mark">🎁</span>
       <h1>Ma P'tite Liste</h1>
-      <p className="muted">Créez vos listes d'idées cadeaux et partagez-les par lien : vos proches réservent, sans gâcher la surprise.</p>
+      <p className="muted">Créez vos listes d'idées cadeaux et partagez-les par lien : vos proches réservent, sans doublons.</p>
       <form onSubmit={submit}>
         <input type="text" placeholder="Prénom (pour un nouveau compte)" value={name} onChange={e => setName(e.target.value)} />
         <input type="email" required placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)} />

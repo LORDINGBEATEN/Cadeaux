@@ -41,6 +41,8 @@ export default function ListPage() {
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState({ url: '', title: '', price: '', note: '', image: '' })
   const [editErr, setEditErr] = useState('')
+  const [claims, setClaims] = useState<Record<string, string>>({})
+  const [hideClaims, setHideClaims] = useState(localStorage.getItem('ptite-hide-claims') === '1')
   const lastLookup = useRef('')
 
   async function load() {
@@ -49,6 +51,8 @@ export default function ListPage() {
       supabase.from('items').select('id, title, url, note, price, currency, image_url').eq('list_id', id).order('created_at'),
     ])
     setList(l.data); setItems(it.data ?? [])
+    const cl = await supabase.rpc('list_claims', { p_list: id })
+    setClaims(Object.fromEntries(((cl.data ?? []) as { item_id: string; guest_name: string }[]).map(c => [c.item_id, c.guest_name])))
   }
   useEffect(() => { load() }, [id])
 
@@ -142,7 +146,9 @@ export default function ListPage() {
     if (error) return setEditErr('Modification impossible : ' + error.message)
     setEditing(null); load()
   }
-  async function remove(itemId: string) { await supabase.from('items').delete().eq('id', itemId); load() }
+  async function remove(itemId: string) {
+    if (claims[itemId] && !confirm(`Cette idée est réservée par ${claims[itemId]}. La supprimer quand même ?`)) return
+    await supabase.from('items').delete().eq('id', itemId); load() }
   async function setArchived(on: boolean) {
     await supabase.from('lists').update({ archived_at: on ? new Date().toISOString() : null }).eq('id', id)
     if (on) nav('/'); else load()
@@ -172,7 +178,12 @@ export default function ListPage() {
         <strong>Lien à partager</strong>
         <p className="muted small">Toute personne qui a ce lien peut voir la liste et réserver une idée, sans créer de compte.</p>
         <div className="row"><input readOnly value={link} onFocus={e => e.target.select()} /><button onClick={copy}>{copied ? 'Copié ✓' : 'Copier'}</button></div>
-        <p className="note">🤫 Vous ne verrez pas qui a réservé quoi : la surprise reste entière !</p>
+        <p className="note">
+          {hideClaims ? '🤫 Réservations masquées pour garder la surprise.' : '👀 Les réservations de vos proches s’affichent sur vos idées.'}{' '}
+          <button type="button" className="link" onClick={() => { const v = !hideClaims; setHideClaims(v); localStorage.setItem('ptite-hide-claims', v ? '1' : '0') }}>
+            {hideClaims ? 'Afficher' : 'Masquer'}
+          </button>
+        </p>
       </div>
 
       <div className="between">
@@ -200,11 +211,12 @@ export default function ListPage() {
             </form>
           </li>
         ) : (
-          <li key={i.id}>
+          <li key={i.id} className={claims[i.id] && !hideClaims ? 'taken' : ''}>
             <Thumb label={itemLabel(i)} image={i.image_url} />
             <div>
               <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a>
               <div className="muted small">{hostOf(i.url)}{i.note ? ` · ${i.note}` : ''}</div>
+              {claims[i.id] && !hideClaims && <div style={{ marginTop: 4 }}><span className="badge">Réservé par {claims[i.id]}</span></div>}
             </div>
             {i.price !== null && <div className="price">{fmtPrice(i.price, i.currency)}</div>}
             <div className="actions">

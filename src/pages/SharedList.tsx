@@ -45,7 +45,7 @@ export default function SharedList() {
       </div>
 
       {data.is_owner
-        ? <p className="note">🤫 C'est votre liste : les réservations sont cachées pour garder la surprise.</p>
+        ? <p className="note">👀 C'est votre liste : voici ce que vos proches ont déjà réservé.</p>
         : <div className="card">
             <strong>Votre prénom</strong>
             <p className="muted small">Pour que les autres sachent qui offre quoi. Aucun compte n'est nécessaire.</p>
@@ -62,7 +62,7 @@ export default function SharedList() {
               <div className="muted small">{[i.price !== null ? fmtPrice(i.price, i.currency) : null, hostOf(i.url), i.note].filter(Boolean).join(' · ')}</div>
             </div>
             <div className="actions">
-              {data.is_owner ? null
+              {data.is_owner ? (i.claimed ? <span className="badge">Réservé par {i.claimed_by}</span> : null)
                 : i.mine ? <><span className="badge mine">Réservé par vous</span><button className="link" onClick={() => unclaim(i.id)}>Annuler</button></>
                 : i.claimed ? <span className="badge">Réservé par {i.claimed_by}</span>
                 : <button onClick={() => claim(i.id)}>Je l'offre</button>}
