@@ -300,6 +300,9 @@ export default function ListPage() {
                         <span className="muted">{fmtPrice(total(i), i.currency)} réunis sur {fmtPrice(i.price!, i.currency)} · {(contribs[i.id] ?? []).length} participant{(contribs[i.id] ?? []).length > 1 ? 's' : ''}</span>
                         <strong className={complete(i) ? 'ok' : 'miss'}>{complete(i) ? 'Complet' : `Il manque ${fmtPrice(i.price! - total(i), i.currency)}`}</strong>
                       </div>
+                      {(contribs[i.id] ?? []).length > 0 && !contribs[i.id].some(c => c.is_buyer) && (
+                        <div className="alert">⚠️ Aucun participant ne s'est encore déclaré pour acheter ce cadeau.</div>
+                      )}
                       {(contribs[i.id] ?? []).length > 0 && (
                         <ul className="contribs">
                           {contribs[i.id].map((c, k) => (

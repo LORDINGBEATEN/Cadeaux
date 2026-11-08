@@ -60,6 +60,7 @@ export default function SharedList() {
     if (error) setErr(error.message)
     load()
   }
+  const canOffer = (i: Item) => !data!.is_owner && !i.mine && !i.claimed && (!i.group_gift || Number(i.contrib_count) === 0)
   const isComplete = (i: Item) => i.group_gift && Number(i.contrib_count) > 0 && Number(i.contrib_total) >= (i.price ?? 0)
   function groupBlock(i: Item) {
     const price = i.price ?? 0, total = Number(i.contrib_total), n = Number(i.contrib_count)
@@ -80,6 +81,9 @@ export default function SharedList() {
                 {c.buyer && <span className="badge mine">Acheteur</span>}<b>{fmtPrice(c.amount, i.currency)}</b></li>
             ))}
           </ul>
+        )}
+        {i.contributors && i.contributors.length > 0 && !i.contributors.some(c => c.buyer) && (
+          <div className="alert">⚠️ Aucun participant ne s'est encore déclaré pour acheter ce cadeau.{mine && <> <button type="button" className="link" onClick={() => setBuyerFor(i.id, true)}>Je m'en occupe</button></>}</div>
         )}
         {!data!.is_owner && (
           <div className="btnrow" style={{ marginTop: 8 }}>
@@ -115,7 +119,7 @@ export default function SharedList() {
       {data.items.length === 0 && <p className="muted">Aucune idée pour le moment.</p>}
       <ul className="items">
         {data.items.map(i => (
-          <li key={i.id} className={`${i.claimed || isComplete(i) ? 'taken' : ''}${i.group_gift && !i.claimed && !i.mine && !data.is_owner ? ' has-group' : ''}`}>
+          <li key={i.id} className={`${i.claimed || isComplete(i) ? 'taken' : ''}${canOffer(i) || (i.group_gift && !i.claimed && !data.is_owner) ? ' has-group' : ''}`}>
             {(i.claimed || isComplete(i)) && <span className="ribbon"><i>{i.claimed ? 'Réservé' : 'Complet'}</i></span>}
             <Thumb label={itemLabel(i)} image={i.image_url} />
             <div>
@@ -126,14 +130,13 @@ export default function SharedList() {
               {data.is_owner ? (i.claimed ? <span className="badge">Réservé par {i.claimed_by}{i.anonymous ? ' (nom caché aux invités)' : ''}</span> : null)
                 : i.mine ? <><span className="badge mine">Réservé par vous{i.anonymous ? ' (nom caché)' : ''}</span><button className="link" onClick={() => unclaim(i.id)}>Annuler</button></>
                 : i.claimed ? <span className="badge">{i.claimed_by ? `Réservé par ${i.claimed_by}` : 'Réservé'}</span>
-                : i.group_gift ? null
-                : <button onClick={() => { setErr(''); setClaiming(i.id) }}>Je l'offre</button>}
+                : null}
             </div>
             {i.group_gift && !i.claimed && Number(i.contrib_count) > 0 && groupBlock(i)}
-            {i.group_gift && !i.claimed && !i.mine && !data.is_owner && Number(i.contrib_count) === 0 && (
-              <div className="offer-row">
+            {canOffer(i) && (
+              <div className={`offer-row${i.group_gift ? '' : ' single'}`}>
                 <button type="button" onClick={() => { setErr(''); setClaiming(i.id) }}>Je l'offre</button>
-                <button type="button" className="secondary" onClick={() => openContribute(i)}>Je participe</button>
+                {i.group_gift && <button type="button" className="secondary" onClick={() => openContribute(i)}>Je participe</button>}
               </div>
             )}
           </li>
