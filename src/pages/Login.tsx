@@ -30,7 +30,7 @@ export default function Login() {
 
   return (
     <main className="card hero">
-      <span className="mark">🎁</span>
+      <img src="/favicon.svg" className="mark-img" alt="" width="56" height="56" />
       <h1 style={{ marginBottom: 0 }}>Ma P'tite Liste</h1>
       <small className="ver">{VERSION}</small>
       <p className="muted">Créez vos listes d'idées cadeaux et partagez-les par lien : vos proches réservent, sans doublons.</p>

@@ -4,7 +4,7 @@ export const VERSION = `v${__APP_VERSION__}`
 export default function Brand() {
   return (
     <>
-      <span className="mark">🎁</span>
+      <img src="/favicon.svg" className="mark-img" alt="" width="36" height="36" />
       <span className="brandtext"><span>Ma P'tite Liste</span><small className="ver">{VERSION}</small></span>
     </>
   )
