@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { fmtDate, fmtPrice, hostOf, itemLabel, tile } from '../lib/util'
+import Thumb from '../lib/Thumb'
+import { fmtDate, fmtPrice, hostOf, itemLabel } from '../lib/util'
 
-type Item = { id: string; title: string | null; url: string; note: string | null; price: number | null; currency: string | null }
+type Item = { id: string; title: string | null; url: string; note: string | null; price: number | null; currency: string | null; image_url: string | null }
 type List = { title: string; occasion: string; event_date: string | null; share_code: string }
 // Nom approximatif déduit de l'adresse, quand la page ne peut pas être lue.
 function titleFromUrl(url: string): string | null {
@@ -24,6 +25,7 @@ export default function ListPage() {
   const [items, setItems] = useState<Item[]>([])
   const [f, setF] = useState(EMPTY)
   const [currency, setCurrency] = useState<string | null>(null)
+  const [image, setImage] = useState<string | null>(null)
   const [searching, setSearching] = useState(false)
   const [hint, setHint] = useState('')
   const [err, setErr] = useState('')
@@ -33,7 +35,7 @@ export default function ListPage() {
   async function load() {
     const [l, it] = await Promise.all([
       supabase.from('lists').select('title, occasion, event_date, share_code').eq('id', id).single(),
-      supabase.from('items').select('id, title, url, note, price, currency').eq('list_id', id).order('created_at'),
+      supabase.from('items').select('id, title, url, note, price, currency, image_url').eq('list_id', id).order('created_at'),
     ])
     setList(l.data); setItems(it.data ?? [])
   }
@@ -53,10 +55,11 @@ export default function ListPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const r = await fetch(`/api/preview?url=${encodeURIComponent(url)}`, { headers: { Authorization: `Bearer ${session?.access_token}` } })
-      const p: { title: string | null; price: number | null; currency: string | null; error?: string } = await r.json()
+      const p: { title: string | null; price: number | null; currency: string | null; image: string | null; error?: string } = await r.json()
       const guess = p.title ? null : titleFromUrl(url)
       setF(cur => ({ ...cur, title: cur.title || p.title || guess || '', price: cur.price || (p.price !== null ? String(p.price) : '') }))
       if (p.price !== null) setCurrency(p.currency)
+      setImage(p.image)
       const found = [p.title, p.price !== null ? fmtPrice(p.price, p.currency) : null].filter(Boolean).join(' · ')
       setHint(found ? `Trouvé : ${found}`
         : p.error ? `Ce site refuse la lecture automatique (${p.error})${guess ? ' : nom déduit du lien, saisissez le prix.' : ' : saisissez les infos à la main.'}`
@@ -73,9 +76,10 @@ export default function ListPage() {
       list_id: id, url: normalize(f.url), title: f.title.trim() || null, note: f.note.trim() || null,
       price: price !== null && Number.isFinite(price) ? price : null,
       currency: price !== null ? currency || 'EUR' : null,
+      image_url: image,
     })
     if (error) return setErr('Lien invalide : ' + error.message)
-    setF(EMPTY); setCurrency(null); setHint(''); lastLookup.current = ''; load()
+    setF(EMPTY); setCurrency(null); setImage(null); setHint(''); lastLookup.current = ''; load()
   }
   async function remove(itemId: string) { await supabase.from('items').delete().eq('id', itemId); load() }
   async function deleteList() {
@@ -105,7 +109,7 @@ export default function ListPage() {
       <ul className="items">
         {items.map(i => (
           <li key={i.id}>
-            <div className={tile(itemLabel(i)).cls}>{tile(itemLabel(i)).letter}</div>
+            <Thumb label={itemLabel(i)} image={i.image_url} />
             <div>
               <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a>
               <div className="muted small">{hostOf(i.url)}{i.note ? ` · ${i.note}` : ''}</div>
@@ -122,8 +126,13 @@ export default function ListPage() {
           onChange={e => setF({ ...f, url: e.target.value })}
           onBlur={e => lookup(e.target.value)}
           onPaste={e => { const t = e.clipboardData.getData('text'); setTimeout(() => lookup(t), 0) }} />
-        {searching && <p className="muted small">🔎 Recherche du nom et du prix…</p>}
-        {!searching && hint && <p className="muted small">{hint}</p>}
+        {searching && <p className="muted small">🔎 Recherche du nom, du prix et de la photo…</p>}
+        {!searching && (hint || image) && (
+          <div className="it-preview">
+            {image && <Thumb label={f.title || 'Idée'} image={image} />}
+            <p className="muted small" style={{ flex: 1, margin: 0 }}>{hint}{image && <> <button type="button" className="link" onClick={() => setImage(null)}>Retirer la photo</button></>}</p>
+          </div>
+        )}
         <div className="row">
           <input placeholder="Nom" value={f.title} onChange={e => setF({ ...f, title: e.target.value })} />
           <input inputMode="decimal" placeholder="Prix" value={f.price} onChange={e => setF({ ...f, price: e.target.value })} style={{ maxWidth: 110 }} />

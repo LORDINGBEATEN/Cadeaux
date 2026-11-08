@@ -7,7 +7,7 @@ import { isIP } from 'node:net'
 const MAX_BYTES = 2_500_000
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
 
-export type Preview = { title: string | null; price: number | null; currency: string | null; error?: string }
+export type Preview = { title: string | null; price: number | null; currency: string | null; image: string | null; error?: string }
 
 function send(res: ServerResponse, status: number, body: unknown) {
   res.statusCode = status
@@ -38,7 +38,7 @@ async function assertPublic(url: URL) {
   if (addrs.length === 0 || addrs.some(a => isPrivateIp(a.address))) throw new Error('adresse refusée')
 }
 
-async function fetchHtml(start: URL): Promise<string> {
+async function fetchHtml(start: URL): Promise<{ html: string; url: URL }> {
   let url = start
   for (let hop = 0; hop < 5; hop++) {
     await assertPublic(url)
@@ -63,7 +63,9 @@ async function fetchHtml(start: URL): Promise<string> {
     reader.cancel().catch(() => {})
     const buf = Buffer.concat(chunks)
     const charset = /charset=([\w-]+)/i.exec(type)?.[1] ?? /<meta[^>]+charset=["']?([\w-]+)/i.exec(buf.subarray(0, 4096).toString('latin1'))?.[1] ?? 'utf-8'
-    try { return new TextDecoder(charset).decode(buf) } catch { return buf.toString('utf8') }
+    let html: string
+    try { html = new TextDecoder(charset).decode(buf) } catch { html = buf.toString('utf8') }
+    return { html, url }
   }
   throw new Error('trop de redirections')
 }
@@ -127,22 +129,49 @@ export function parsePrice(raw: unknown): number | null {
 }
 
 // Amazon n'utilise pas les données structurées standard : lecture de son balisage.
-function amazon(html: string): { title: string | null; priceRaw: string | null } {
+function amazon(html: string): { title: string | null; priceRaw: string | null; image: string | null } {
   const title = /id="productTitle"[^>]*>([\s\S]*?)<\/span>/i.exec(html)?.[1] ?? null
   const priceRe = (cls: string) => new RegExp(`class="a-price(?![^"]*a-text-price)[^"]*${cls}[^"]*"[^>]*>\\s*<span class="a-offscreen">([^<]+)</span>`, 'i')
   const priceRaw = (priceRe('apex-pricetopay-value').exec(html) ?? priceRe('').exec(html))?.[1] ?? null
-  return { title, priceRaw }
+  let image: string | null = null
+  const tag = /<img\b[^>]*\bid="landingImage"[^>]*>/i.exec(html)?.[0]
+  if (tag) {
+    const attr = (n: string) => new RegExp(`\\s${n}="([^"]*)"`, 'i').exec(tag)?.[1]
+    image = attr('data-old-hires') || null
+    if (!image) {
+      try {
+        const sizes = JSON.parse(decode(attr('data-a-dynamic-image') ?? '{}')) as Record<string, number[]>
+        image = Object.entries(sizes).sort((x, y) => (y[1][0] ?? 0) - (x[1][0] ?? 0))[0]?.[0] ?? null
+      } catch { /* ignoré */ }
+    }
+    image = image || attr('src') || null
+  }
+  return { title, priceRaw, image }
 }
 
 const symbolCurrency = (raw: string | null) => (!raw ? null : raw.includes('€') ? 'EUR' : raw.includes('£') ? 'GBP' : raw.includes('$') ? 'USD' : null)
 
-export function extract(html: string): Preview {
+// URL d'image absolue en https (les images http seraient bloquées sur un site https).
+function imageUrl(raw: unknown, base?: string): string | null {
+  let v: unknown = Array.isArray(raw) ? raw[0] : raw
+  if (v && typeof v === 'object') v = (v as { url?: unknown }).url ?? (v as { contentUrl?: unknown }).contentUrl
+  if (typeof v !== 'string' || !v.trim()) return null
+  try {
+    const u = new URL(decode(v.trim()), base)
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null
+    u.protocol = 'https:'
+    return u.href.length <= 2000 ? u.href : null
+  } catch { return null }
+}
+
+export function extract(html: string, base?: string): Preview {
   const m = metas(html)
   const product = jsonLdProduct(html)
   const offer = firstOffer(product?.offers)
   const spec = offer?.priceSpecification
   const clean = (t: unknown) => (typeof t === 'string' ? decode(t).replace(/\s+/g, ' ').trim().slice(0, 200) || null : null)
   const az = amazon(html)
+  const image = imageUrl(product?.image, base) ?? imageUrl(m['og:image:secure_url'] ?? m['og:image'] ?? m['twitter:image'] ?? m['twitter:image:src'], base) ?? imageUrl(az.image, base)
   const pageTitle = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1]
 
   const title = clean(product?.name) ?? clean(az.title) ?? clean(m['og:title']) ?? clean(m['twitter:title']) ?? clean(pageTitle)
@@ -151,11 +180,12 @@ export function extract(html: string): Preview {
     parsePrice(az.priceRaw)
   const cur = offer?.priceCurrency ?? spec?.priceCurrency ?? m['product:price:currency'] ?? m['og:price:currency'] ?? m['pricecurrency'] ?? symbolCurrency(az.priceRaw)
   const currency = typeof cur === 'string' && /^[A-Za-z]{3}$/.test(cur.trim()) ? cur.trim().toUpperCase() : null
-  return { title, price, currency: price !== null ? currency : null }
+  return { title, price, currency: price !== null ? currency : null, image }
 }
 
 export async function lookupPreview(url: URL): Promise<Preview> {
-  return extract(await fetchHtml(url))
+  const r = await fetchHtml(url)
+  return extract(r.html, r.url.href)
 }
 
 async function isAuthed(authorization: string): Promise<boolean> {
@@ -175,6 +205,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     send(res, 200, await lookupPreview(url))
   } catch (e) {
     // Site illisible ou qui bloque les robots : l'utilisateur saisira les infos à la main.
-    send(res, 200, { title: null, price: null, currency: null, error: e instanceof Error ? e.message : 'erreur' } satisfies Preview)
+    send(res, 200, { title: null, price: null, currency: null, image: null, error: e instanceof Error ? e.message : 'erreur' } satisfies Preview)
   }
 }

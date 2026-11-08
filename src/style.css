@@ -50,9 +50,11 @@ button.danger { color:#B3372A; margin-top:16px }
 .items li a:hover { text-decoration:underline }
 .items li.taken .tile { opacity:.6 }
 .actions { display:flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:flex-end }
+.it-preview { display:flex; align-items:center; gap:12px; margin:6px 0 }
 .price { font-weight:600; white-space:nowrap }
 
-.tile { width:44px; height:44px; flex:none; border-radius:12px; display:flex; align-items:center; justify-content:center; font:600 1.15rem ui-rounded,system-ui,sans-serif }
+.tile { width:52px; height:52px; flex:none; border-radius:12px; display:flex; align-items:center; justify-content:center; font:600 1.15rem ui-rounded,system-ui,sans-serif }
+.thumb { object-fit:cover; background:#fff; border:1px solid var(--line) }
 .tile-0 { background:#FDE7E1; color:#9A3524 } .tile-1 { background:#E6F1FB; color:#0C447C }
 .tile-2 { background:#E1F5EE; color:#085041 } .tile-3 { background:#FAEEDA; color:#633806 }
 
