@@ -57,21 +57,20 @@ export default function Login() {
   }
 
   return (
+    <>
     <main className="card hero">
-      <img src="/favicon.svg" className="mark-img" alt="" width="56" height="56" />
-      <h1 style={{ marginBottom: 0 }}>Ma P'tite Liste</h1>
-      <small className="ver">{VERSION}</small>
-      <p className="muted">Créez vos listes d'idées cadeaux et partagez-les par lien : vos proches réservent, sans doublons.</p>
+      <img src="/favicon.svg" className="mark-img" alt="" width="64" height="64" />
+      <h1 className="brand-title">Ma <sup>P'tite</sup> Liste</h1>
+      <p className="intro">Faites votre liste, partagez le lien.<br />Vos proches réservent, vous gardez la surprise.</p>
 
       {mode === 'home' && <>
-        <form onSubmit={openCode} className="code-box">
-          <strong>Vous avez reçu un code ?</strong>
-          <div className="row">
-            <input type="text" placeholder="Code ou lien de la liste" value={code} onChange={e => setCode(e.target.value)} />
-            <button>Ouvrir</button>
-          </div>
+        <form onSubmit={openCode} className="code-bar">
+          <input type="text" placeholder="Code ou lien de la liste" aria-label="Code ou lien de la liste" value={code} onChange={e => setCode(e.target.value)} />
+          <button>Ouvrir</button>
         </form>
-        <p className="muted small">Pas besoin de compte pour réserver une idée.</p>
+        <p className="muted small">Invité ? Aucun compte nécessaire : vous pouvez voir une liste et vous positionner sur un cadeau en le réservant.</p>
+        <div className="or"><span>ou</span></div>
+        <p className="muted small" style={{ marginTop: 0 }}>Un compte est nécessaire pour créer vos propres listes.</p>
         <div className="row auth-btns">
           <button type="button" onClick={() => go('signin')}>Se connecter</button>
           <button type="button" className="secondary" onClick={() => go('signup')}>Créer un compte</button>
@@ -80,6 +79,7 @@ export default function Login() {
 
       {mode === 'signin' && (
         <form onSubmit={signIn}>
+          <p className="muted small hint">Votre compte est commun à toutes les applications du « P'tit Canif ». Connectez-vous pour gérer vos listes.</p>
           <input type="email" required placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)} />
           <input type="password" required placeholder="Mot de passe" value={password} onChange={e => setPassword(e.target.value)} />
           <button>Se connecter</button>
@@ -89,6 +89,7 @@ export default function Login() {
 
       {mode === 'signup' && (
         <form onSubmit={signUp}>
+          <p className="muted small hint">Votre compte sera commun à toutes les applications du « P'tit Canif ». Il vous permet de créer et de gérer vos listes.</p>
           <input type="text" required placeholder="Prénom" value={name} onChange={e => setName(e.target.value)} />
           <input type="email" required placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)} />
           <input type="password" required minLength={6} placeholder="Mot de passe (6 caractères min.)" value={password} onChange={e => setPassword(e.target.value)} />
@@ -100,5 +101,7 @@ export default function Login() {
       {msg && <p className="ok">{msg}</p>}
       {err && <p className="err">{err}</p>}
     </main>
+    <footer className="page-foot">{VERSION}</footer>
+    </>
   )
 }
