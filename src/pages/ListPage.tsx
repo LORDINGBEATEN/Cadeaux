@@ -6,7 +6,7 @@ import NewListModal from '../lib/NewListModal'
 import Modal from '../lib/Modal'
 import { daysUntil, fmtDate, fmtPrice, hostOf, inDays, itemLabel } from '../lib/util'
 
-type Item = { id: string; title: string | null; url: string | null; note: string | null; price: number | null; currency: string | null; image_url: string | null; group_gift: boolean }
+type Item = { id: string; title: string | null; url: string | null; note: string | null; price: number | null; currency: string | null; image_url: string | null; no_group: boolean }
 type List = { title: string; occasion: string; event_date: string | null; share_code: string; archived_at: string | null }
 // Nom approximatif déduit de l'adresse, quand la page ne peut pas être lue.
 function titleFromUrl(url: string): string | null {
@@ -60,7 +60,7 @@ export default function ListPage() {
   async function load() {
     const [l, it] = await Promise.all([
       supabase.from('lists').select('title, occasion, event_date, share_code, archived_at').eq('id', id).single(),
-      supabase.from('items').select('id, title, url, note, price, currency, image_url, group_gift').eq('list_id', id).order('created_at'),
+      supabase.from('items').select('id, title, url, note, price, currency, image_url, no_group').eq('list_id', id).order('created_at'),
     ])
     setList(l.data); setItems(it.data ?? [])
     const cl = await supabase.rpc('list_claims', { p_list: id })
@@ -177,9 +177,8 @@ export default function ListPage() {
     setClaimFor(null); load()
   }
   async function toggleGroup(i: Item) {
-    if (!i.group_gift && i.price === null) return alert("Indiquez d'abord le prix de l'idée (Modifier) : il sert de montant à réunir.")
-    if (i.group_gift && (contribs[i.id]?.length ?? 0) > 0) return alert('Des personnes participent déjà : la fonction ne peut plus être désactivée.')
-    await supabase.from('items').update({ group_gift: !i.group_gift }).eq('id', i.id)
+    if (!i.no_group && (contribs[i.id]?.length ?? 0) > 0) return alert('Des personnes participent déjà : vous ne pouvez plus désactiver cette option.')
+    await supabase.from('items').update({ no_group: !i.no_group }).eq('id', i.id)
     load()
   }
   async function unclaimItem(itemId: string) {
@@ -205,7 +204,7 @@ export default function ListPage() {
   async function copy() { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 2000) }
 
   const total = (i: Item) => (contribs[i.id] ?? []).reduce((s, c) => s + c.amount, 0)
-  const complete = (i: Item) => !!i.group_gift && i.price !== null && total(i) >= i.price
+  const complete = (i: Item) => (contribs[i.id]?.length ?? 0) > 0 && i.price !== null && total(i) >= i.price
   const done = (i: Item) => !!claims[i.id] || complete(i)
   const taken = items.filter(done).length
   const d = daysUntil(list.event_date)
@@ -269,7 +268,7 @@ export default function ListPage() {
             </form>
           </li>
         ) : (
-          <li key={i.id} className={`${done(i) && !hideClaims ? 'taken' : ''}${i.group_gift ? ' has-group' : ''}`}>
+          <li key={i.id} className={`${done(i) && !hideClaims ? 'taken' : ''}${(contribs[i.id]?.length ?? 0) > 0 ? ' has-group' : ''}`}>
             {done(i) && !hideClaims && <span className="ribbon"><i>{claims[i.id] ? 'Réservé' : 'Complet'}</i></span>}
             <Thumb label={itemLabel(i)} image={i.image_url} />
             <div>
@@ -278,23 +277,23 @@ export default function ListPage() {
             </div>
             {!hideClaims && (claims[i.id]
               ? <span className="badge">Réservé par {claims[i.id]}{anonMap[i.id] ? ' (nom caché aux invités)' : ''}</span>
-              : i.group_gift ? null : <button type="button" className="link" onClick={() => { setClaimName(''); setClaimHide(false); setClaimErr(''); setClaimFor(i.id) }}>Réserver pour…</button>)}
+              : (contribs[i.id]?.length ?? 0) > 0 ? null : <button type="button" className="link" onClick={() => { setClaimName(''); setClaimHide(false); setClaimErr(''); setClaimFor(i.id) }}>Réserver pour…</button>)}
             {i.price !== null && <div className="price">{fmtPrice(i.price, i.currency)}</div>}
             <div className="imenu">
               <button type="button" className="link" aria-label="Actions" aria-expanded={menuFor === i.id} onClick={() => setMenuFor(m => m === i.id ? null : i.id)}>⋯</button>
               {menuFor === i.id && (
                 <div className="profile-menu" role="menu">
                   <button type="button" className="pm-item" onClick={() => { setMenuFor(null); startEdit(i) }}>Modifier</button>
-                  {!claims[i.id] && <button type="button" className="pm-item" onClick={() => { setMenuFor(null); toggleGroup(i) }}>{i.group_gift ? 'Désactiver « à plusieurs »' : 'Cadeau à plusieurs'}</button>}
+                  {!claims[i.id] && i.price !== null && <button type="button" className="pm-item" onClick={() => { setMenuFor(null); toggleGroup(i) }}>{i.no_group ? 'Autoriser les participations' : 'Ne pas proposer « à plusieurs »'}</button>}
                   {!hideClaims && claims[i.id] && <button type="button" className="pm-item" onClick={() => { setMenuFor(null); unclaimItem(i.id) }}>Retirer la réservation</button>}
                   <button type="button" className="pm-item" onClick={() => { setMenuFor(null); remove(i.id) }}>Supprimer</button>
                 </div>
               )}
             </div>
-            {i.group_gift && (
+            {(contribs[i.id]?.length ?? 0) > 0 && (
               <div className="group">
                 {hideClaims
-                  ? <span className="chip">Cadeau à plusieurs</span>
+                  ? <span className="chip">Des participations en cours</span>
                   : <>
                       <div className="pbar"><div style={{ width: `${Math.min(100, i.price ? (total(i) / i.price) * 100 : 0)}%` }} /></div>
                       <div className="between small" style={{ marginTop: 4 }}>
