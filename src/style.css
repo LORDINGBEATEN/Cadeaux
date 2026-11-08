@@ -221,3 +221,10 @@ ol { padding-left:1.2rem } li { margin:4px 0 }
 .dialog-head .link,.dialog-head .link:hover,.dialog-head .link:focus,.dialog-head .link:active{background:none;color:var(--muted);box-shadow:none;outline:none;transform:none;text-decoration:none}
 .dialog-head .link:hover{background:var(--accent-soft);color:var(--ink)}
 .dialog-head .link:focus-visible{box-shadow:0 0 0 3px var(--accent-soft)}
+.items li.has-group{flex-wrap:wrap}
+.group{flex-basis:100%;padding-top:10px;border-top:1px dashed var(--line)}
+.group .pbar{margin-top:0}
+.group .ok{color:#2f6a1f}.group .miss{color:var(--accent-ink)}
+.contribs{list-style:none;margin:8px 0 0;padding:0}
+.items .contribs li{display:flex;align-items:center;gap:8px;border:none;border-radius:0;border-top:1px solid var(--line);background:none;margin:0;padding:6px 0;opacity:1;filter:none}
+.av{width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);font-size:.75rem;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none}

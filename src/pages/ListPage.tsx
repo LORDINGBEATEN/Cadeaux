@@ -6,7 +6,7 @@ import NewListModal from '../lib/NewListModal'
 import Modal from '../lib/Modal'
 import { daysUntil, fmtDate, fmtPrice, hostOf, inDays, itemLabel } from '../lib/util'
 
-type Item = { id: string; title: string | null; url: string | null; note: string | null; price: number | null; currency: string | null; image_url: string | null }
+type Item = { id: string; title: string | null; url: string | null; note: string | null; price: number | null; currency: string | null; image_url: string | null; group_gift: boolean }
 type List = { title: string; occasion: string; event_date: string | null; share_code: string; archived_at: string | null }
 // Nom approximatif déduit de l'adresse, quand la page ne peut pas être lue.
 function titleFromUrl(url: string): string | null {
@@ -47,6 +47,7 @@ export default function ListPage() {
   const [claimFor, setClaimFor] = useState<string | null>(null)
   const [claimName, setClaimName] = useState('')
   const [claimHide, setClaimHide] = useState(false)
+  const [contribs, setContribs] = useState<Record<string, { guest_name: string; amount: number; is_buyer: boolean }[]>>({})
   const [anonMap, setAnonMap] = useState<Record<string, boolean>>({})
   const [claimErr, setClaimErr] = useState('')
   const [claims, setClaims] = useState<Record<string, string>>({})
@@ -59,13 +60,17 @@ export default function ListPage() {
   async function load() {
     const [l, it] = await Promise.all([
       supabase.from('lists').select('title, occasion, event_date, share_code, archived_at').eq('id', id).single(),
-      supabase.from('items').select('id, title, url, note, price, currency, image_url').eq('list_id', id).order('created_at'),
+      supabase.from('items').select('id, title, url, note, price, currency, image_url, group_gift').eq('list_id', id).order('created_at'),
     ])
     setList(l.data); setItems(it.data ?? [])
     const cl = await supabase.rpc('list_claims', { p_list: id })
     const rows = (cl.data ?? []) as { item_id: string; guest_name: string; anonymous: boolean }[]
     setClaims(Object.fromEntries(rows.map(c => [c.item_id, c.guest_name])))
     setAnonMap(Object.fromEntries(rows.map(c => [c.item_id, c.anonymous])))
+    const ct = await supabase.rpc('list_contributions', { p_list: id })
+    const byItem: Record<string, { guest_name: string; amount: number; is_buyer: boolean }[]> = {}
+    for (const r of ((ct.data ?? []) as { item_id: string; guest_name: string; amount: number; is_buyer: boolean }[])) (byItem[r.item_id] ||= []).push({ ...r, amount: Number(r.amount) })
+    setContribs(byItem)
   }
   useEffect(() => { load() }, [id])
   useEffect(() => {
@@ -171,6 +176,12 @@ export default function ListPage() {
     if (error) return setClaimErr(error.message)
     setClaimFor(null); load()
   }
+  async function toggleGroup(i: Item) {
+    if (!i.group_gift && i.price === null) return alert("Indiquez d'abord le prix de l'idée (Modifier) : il sert de montant à réunir.")
+    if (i.group_gift && (contribs[i.id]?.length ?? 0) > 0) return alert('Des personnes participent déjà : la fonction ne peut plus être désactivée.')
+    await supabase.from('items').update({ group_gift: !i.group_gift }).eq('id', i.id)
+    load()
+  }
   async function unclaimItem(itemId: string) {
     if (!confirm(`Retirer la réservation de ${claims[itemId]} ?`)) return
     await supabase.rpc('owner_unclaim_item', { p_item: itemId })
@@ -193,9 +204,12 @@ export default function ListPage() {
   function toggleHide(v: boolean) { setHideClaims(v); localStorage.setItem('ptite-hide-claims', v ? '1' : '0') }
   async function copy() { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 2000) }
 
-  const taken = items.filter(i => claims[i.id]).length
+  const total = (i: Item) => (contribs[i.id] ?? []).reduce((s, c) => s + c.amount, 0)
+  const complete = (i: Item) => !!i.group_gift && i.price !== null && total(i) >= i.price
+  const done = (i: Item) => !!claims[i.id] || complete(i)
+  const taken = items.filter(done).length
   const d = daysUntil(list.event_date)
-  const shown = items.filter(i => hideClaims || filter === 'all' || (filter === 'taken' ? !!claims[i.id] : !claims[i.id]))
+  const shown = items.filter(i => hideClaims || filter === 'all' || (filter === 'taken' ? done(i) : !done(i)))
   const sub = [list.occasion, list.event_date && fmtDate(list.event_date), d !== null && d >= 0 ? inDays(d) : null].filter(Boolean).join(' · ')
 
   return (
@@ -255,8 +269,8 @@ export default function ListPage() {
             </form>
           </li>
         ) : (
-          <li key={i.id} className={claims[i.id] && !hideClaims ? 'taken' : ''}>
-            {claims[i.id] && !hideClaims && <span className="ribbon"><i>Réservé</i></span>}
+          <li key={i.id} className={`${done(i) && !hideClaims ? 'taken' : ''}${i.group_gift ? ' has-group' : ''}`}>
+            {done(i) && !hideClaims && <span className="ribbon"><i>{claims[i.id] ? 'Réservé' : 'Complet'}</i></span>}
             <Thumb label={itemLabel(i)} image={i.image_url} />
             <div>
               {i.url ? <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a> : <strong>{itemLabel(i)}</strong>}
@@ -264,18 +278,40 @@ export default function ListPage() {
             </div>
             {!hideClaims && (claims[i.id]
               ? <span className="badge">Réservé par {claims[i.id]}{anonMap[i.id] ? ' (nom caché aux invités)' : ''}</span>
-              : <button type="button" className="link" onClick={() => { setClaimName(''); setClaimHide(false); setClaimErr(''); setClaimFor(i.id) }}>Réserver pour…</button>)}
+              : i.group_gift ? null : <button type="button" className="link" onClick={() => { setClaimName(''); setClaimHide(false); setClaimErr(''); setClaimFor(i.id) }}>Réserver pour…</button>)}
             {i.price !== null && <div className="price">{fmtPrice(i.price, i.currency)}</div>}
             <div className="imenu">
               <button type="button" className="link" aria-label="Actions" aria-expanded={menuFor === i.id} onClick={() => setMenuFor(m => m === i.id ? null : i.id)}>⋯</button>
               {menuFor === i.id && (
                 <div className="profile-menu" role="menu">
                   <button type="button" className="pm-item" onClick={() => { setMenuFor(null); startEdit(i) }}>Modifier</button>
+                  {!claims[i.id] && <button type="button" className="pm-item" onClick={() => { setMenuFor(null); toggleGroup(i) }}>{i.group_gift ? 'Désactiver « à plusieurs »' : 'Cadeau à plusieurs'}</button>}
                   {!hideClaims && claims[i.id] && <button type="button" className="pm-item" onClick={() => { setMenuFor(null); unclaimItem(i.id) }}>Retirer la réservation</button>}
                   <button type="button" className="pm-item" onClick={() => { setMenuFor(null); remove(i.id) }}>Supprimer</button>
                 </div>
               )}
             </div>
+            {i.group_gift && (
+              <div className="group">
+                {hideClaims
+                  ? <span className="chip">Cadeau à plusieurs</span>
+                  : <>
+                      <div className="pbar"><div style={{ width: `${Math.min(100, i.price ? (total(i) / i.price) * 100 : 0)}%` }} /></div>
+                      <div className="between small" style={{ marginTop: 4 }}>
+                        <span className="muted">{fmtPrice(total(i), i.currency)} réunis sur {fmtPrice(i.price!, i.currency)} · {(contribs[i.id] ?? []).length} participant{(contribs[i.id] ?? []).length > 1 ? 's' : ''}</span>
+                        <strong className={complete(i) ? 'ok' : 'miss'}>{complete(i) ? 'Complet' : `Il manque ${fmtPrice(i.price! - total(i), i.currency)}`}</strong>
+                      </div>
+                      {(contribs[i.id] ?? []).length > 0 && (
+                        <ul className="contribs">
+                          {contribs[i.id].map((c, k) => (
+                            <li key={k}><span className="av">{c.guest_name[0]?.toUpperCase()}</span><span style={{ flex: 1 }}>{c.guest_name}</span>
+                              {c.is_buyer && <span className="badge mine">Acheteur</span>}<b>{fmtPrice(c.amount, i.currency)}</b></li>
+                          ))}
+                        </ul>
+                      )}
+                    </>}
+              </div>
+            )}
           </li>
         ))}
       </ul>
