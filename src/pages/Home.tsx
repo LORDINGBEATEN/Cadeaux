@@ -90,7 +90,7 @@ export default function Home() {
   const frame = !hideCdc && (
     <section className="bmframe">
       <div className="bmtext">
-        <strong>Coup de cœur</strong>
+        <strong>💝 Coup de cœur</strong>
         <p>Un produit repéré dans une boutique ? Ajoutez-le à une liste en un clic, avec son nom, son prix et sa photo.</p>
         <p className="muted small">Glissez le bouton dans votre barre de favoris. <Link to="/coup-de-coeur">Comment ça marche</Link></p>
       </div>

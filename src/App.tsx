@@ -24,7 +24,7 @@ function Private() {
     <>
       <header>
         <Link to="/" className="logo"><span className="mark">🎁</span>Ma P'tite Liste</Link>
-        <span><Link to="/coup-de-coeur" className="navlink">Coup de cœur</Link><button className="link" onClick={() => supabase.auth.signOut()}>Déconnexion</button></span>
+        <span><Link to="/coup-de-coeur" className="navlink">💝 Coup de cœur</Link><button className="link" onClick={() => supabase.auth.signOut()}>Déconnexion</button></span>
       </header>
       <main>
         <Routes>

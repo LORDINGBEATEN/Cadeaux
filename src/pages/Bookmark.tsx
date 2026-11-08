@@ -9,7 +9,7 @@ export default function Bookmark() {
   return (
     <>
       <p><Link to="/">← Mes listes</Link></p>
-      <h2>Coup de cœur</h2>
+      <h2>💝 Coup de cœur</h2>
       <p className="muted">Vous repérez un produit dans une boutique ? Ajoutez-le à une liste en un clic, avec son nom, son prix et sa photo. Idéal pour Amazon et les sites qui bloquent la lecture automatique.</p>
 
       <div className="card share center">

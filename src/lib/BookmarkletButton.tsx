@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { bookmarkletCode } from './bookmarklet'
 
-export const bookmarkletLabel = '+ Coup de cœur'
+export const bookmarkletLabel = '💝 Coup de cœur'
 
 // Bouton à glisser dans la barre de favoris. React refuse d'écrire une adresse javascript:
 // dans href : on la pose directement sur l'élément.
