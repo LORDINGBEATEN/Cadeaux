@@ -30,11 +30,19 @@ export function tile(label: string) {
   return { cls: `tile tile-${h}`, letter }
 }
 
-export function countdown(date: string | null): string | null {
+export function daysUntil(date: string | null): number | null {
   if (!date) return null
   const [y, m, d] = date.split('-').map(Number)
-  const days = Math.round((new Date(y, m - 1, d).getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000)
-  if (days < 0) return null
+  return Math.round((new Date(y, m - 1, d).getTime() - new Date().setHours(0, 0, 0, 0)) / 86400000)
+}
+
+export function countdown(date: string | null): string | null {
+  const days = daysUntil(date)
+  if (days === null || days < 0) return null
   if (days === 0) return "c'est aujourd'hui !"
   return days === 1 ? "plus qu'un jour" : `plus que ${days} jours`
+}
+
+export function inDays(days: number): string {
+  return days === 0 ? "aujourd'hui" : days === 1 ? 'demain' : `dans ${days} jours`
 }

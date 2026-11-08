@@ -16,6 +16,7 @@ create table lists (
   title text not null,
   occasion text not null default 'Anniversaire',
   event_date date,
+  archived_at timestamptz,
   -- code secret du lien de partage donné aux invités
   share_code text not null unique
     default substr(replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''), 1, 16)

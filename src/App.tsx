@@ -24,13 +24,14 @@ function Private() {
     <>
       <header>
         <Link to="/" className="logo"><span className="mark">🎁</span>Ma P'tite Liste</Link>
-        <span><Link to="/bouton" className="navlink">Bouton favoris</Link><button className="link" onClick={() => supabase.auth.signOut()}>Déconnexion</button></span>
+        <span><Link to="/coup-de-coeur" className="navlink">Coup de cœur</Link><button className="link" onClick={() => supabase.auth.signOut()}>Déconnexion</button></span>
       </header>
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/l/:id" element={<ListPage />} />
-          <Route path="/bouton" element={<Bookmark />} />
+          <Route path="/coup-de-coeur" element={<Bookmark />} />
+          <Route path="/bouton" element={<Navigate to="/coup-de-coeur" replace />} />
           <Route path="/ajouter" element={<AddFromPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

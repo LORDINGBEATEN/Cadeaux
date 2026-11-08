@@ -5,7 +5,7 @@ import Thumb from '../lib/Thumb'
 import { fmtDate, fmtPrice, hostOf, itemLabel } from '../lib/util'
 
 type Item = { id: string; title: string | null; url: string; note: string | null; price: number | null; currency: string | null; image_url: string | null }
-type List = { title: string; occasion: string; event_date: string | null; share_code: string }
+type List = { title: string; occasion: string; event_date: string | null; share_code: string; archived_at: string | null }
 // Nom approximatif déduit de l'adresse, quand la page ne peut pas être lue.
 function titleFromUrl(url: string): string | null {
   try {
@@ -45,7 +45,7 @@ export default function ListPage() {
 
   async function load() {
     const [l, it] = await Promise.all([
-      supabase.from('lists').select('title, occasion, event_date, share_code').eq('id', id).single(),
+      supabase.from('lists').select('title, occasion, event_date, share_code, archived_at').eq('id', id).single(),
       supabase.from('items').select('id, title, url, note, price, currency, image_url').eq('list_id', id).order('created_at'),
     ])
     setList(l.data); setItems(it.data ?? [])
@@ -143,6 +143,10 @@ export default function ListPage() {
     setEditing(null); load()
   }
   async function remove(itemId: string) { await supabase.from('items').delete().eq('id', itemId); load() }
+  async function setArchived(on: boolean) {
+    await supabase.from('lists').update({ archived_at: on ? new Date().toISOString() : null }).eq('id', id)
+    if (on) nav('/'); else load()
+  }
   async function deleteList() {
     if (!confirm('Supprimer cette liste et ses idées ?')) return
     await supabase.from('lists').delete().eq('id', id); nav('/')
@@ -157,6 +161,12 @@ export default function ListPage() {
       <p><Link to="/">← Mes listes</Link></p>
       <h2>{list.title}</h2>
       <span className="chip">{list.occasion}{list.event_date ? ` · ${fmtDate(list.event_date)}` : ''}</span>
+      {list.archived_at && (
+        <div className="note" style={{ marginTop: 12 }}>
+          📦 Cette liste est archivée : elle n'apparaît plus dans « Mes listes ». Son lien de partage reste actif.{' '}
+          <button type="button" className="link" onClick={() => setArchived(false)}>Restaurer</button>
+        </div>
+      )}
 
       <div className="card share">
         <strong>Lien à partager</strong>
@@ -226,7 +236,10 @@ export default function ListPage() {
         <button disabled={searching}>Ajouter</button>
         {err && <p className="err">{err}</p>}
       </form>
-      <button className="link danger" onClick={deleteList}>Supprimer la liste</button>
+      <div className="btnrow" style={{ marginTop: 20 }}>
+        {!list.archived_at && <button type="button" className="secondary" onClick={() => setArchived(true)}>📦 Archiver la liste</button>}
+        <button type="button" className="link danger" style={{ marginTop: 0 }} onClick={deleteList}>Supprimer la liste</button>
+      </div>
     </>
   )
 }
