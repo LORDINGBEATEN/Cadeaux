@@ -56,8 +56,17 @@ declare u record;
 begin
   select email, raw_user_meta_data from auth.users where id = auth.uid() into u;
   insert into profiles(id, name)
-  values (auth.uid(), coalesce(nullif(u.raw_user_meta_data->>'name',''), split_part(u.email,'@',1)))
+  values (auth.uid(), coalesce(nullif(u.raw_user_meta_data->>'name',''), initcap(regexp_replace(split_part(u.email,'@',1), '[._+-].*$', ''))))
   on conflict (id) do nothing;
+end $$;
+
+-- Le prénom affiché (« Bonjour … », « Liste de … ») est modifiable par l'utilisateur.
+create function set_profile_name(p_name text) returns void
+  language plpgsql security definer set search_path = app_cadeaux as $$
+begin
+  if length(trim(coalesce(p_name, ''))) = 0 then raise exception 'Indiquez un prénom'; end if;
+  insert into profiles(id, name) values (auth.uid(), left(trim(p_name), 60))
+  on conflict (id) do update set name = excluded.name;
 end $$;
 
 -- Page invité : la liste, ses idées et l'état des réservations.
