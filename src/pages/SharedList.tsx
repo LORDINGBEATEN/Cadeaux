@@ -87,7 +87,7 @@ export default function SharedList() {
               {!complete || mine ? <button type="button" className="secondary" onClick={() => openContribute(i)}>Modifier ma part</button> : null}
               <button type="button" className="secondary" onClick={() => setBuyerFor(i.id, !mine.buyer)}>{mine.buyer ? 'Ne plus m’occuper de l’achat' : 'Je m’occupe de l’achat'}</button>
               <button type="button" className="link" onClick={() => withdraw(i.id)}>Retirer ma participation</button>
-            </> : !complete && <button type="button" onClick={() => openContribute(i)}>Participer</button>}
+            </> : !complete && <button type="button" onClick={() => openContribute(i)}>Je participe</button>}
           </div>
         )}
       </div>
@@ -115,7 +115,7 @@ export default function SharedList() {
       {data.items.length === 0 && <p className="muted">Aucune idée pour le moment.</p>}
       <ul className="items">
         {data.items.map(i => (
-          <li key={i.id} className={`${i.claimed || isComplete(i) ? 'taken' : ''}${i.group_gift && !i.claimed && Number(i.contrib_count) > 0 ? ' has-group' : ''}`}>
+          <li key={i.id} className={`${i.claimed || isComplete(i) ? 'taken' : ''}${i.group_gift && !i.claimed && !i.mine && !data.is_owner ? ' has-group' : ''}`}>
             {(i.claimed || isComplete(i)) && <span className="ribbon"><i>{i.claimed ? 'Réservé' : 'Complet'}</i></span>}
             <Thumb label={itemLabel(i)} image={i.image_url} />
             <div>
@@ -126,12 +126,16 @@ export default function SharedList() {
               {data.is_owner ? (i.claimed ? <span className="badge">Réservé par {i.claimed_by}{i.anonymous ? ' (nom caché aux invités)' : ''}</span> : null)
                 : i.mine ? <><span className="badge mine">Réservé par vous{i.anonymous ? ' (nom caché)' : ''}</span><button className="link" onClick={() => unclaim(i.id)}>Annuler</button></>
                 : i.claimed ? <span className="badge">{i.claimed_by ? `Réservé par ${i.claimed_by}` : 'Réservé'}</span>
-                : i.group_gift ? (Number(i.contrib_count) === 0
-                    ? <><button onClick={() => { setErr(''); setClaiming(i.id) }}>Je l'offre</button><button className="secondary" onClick={() => openContribute(i)}>Participer</button></>
-                    : null)
+                : i.group_gift ? null
                 : <button onClick={() => { setErr(''); setClaiming(i.id) }}>Je l'offre</button>}
             </div>
             {i.group_gift && !i.claimed && Number(i.contrib_count) > 0 && groupBlock(i)}
+            {i.group_gift && !i.claimed && !i.mine && !data.is_owner && Number(i.contrib_count) === 0 && (
+              <div className="offer-row">
+                <button type="button" onClick={() => { setErr(''); setClaiming(i.id) }}>Je l'offre</button>
+                <button type="button" className="secondary" onClick={() => openContribute(i)}>Je participe</button>
+              </div>
+            )}
           </li>
         ))}
       </ul>
