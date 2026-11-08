@@ -1,0 +1,28 @@
+:root { --accent:#e11d48; --bg:#fff7f8; --fg:#1f2937; --muted:#6b7280; --line:#f1d5da; }
+* { box-sizing:border-box }
+body { margin:0; font:16px/1.5 system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--fg) }
+header { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#fff; border-bottom:1px solid var(--line) }
+.logo { font-weight:700; color:var(--accent); text-decoration:none; font-size:1.1rem }
+main { max-width:720px; margin:0 auto; padding:20px }
+a { color:var(--accent) }
+h1,h2,h3 { line-height:1.2 }
+input,select,button { font:inherit; padding:10px 12px; border-radius:8px; border:1px solid #d1d5db; width:100%; margin:4px 0 }
+button { background:var(--accent); color:#fff; border:none; cursor:pointer; width:auto; padding:10px 16px }
+button:hover { filter:brightness(.92) }
+button.secondary { background:#fff; color:var(--accent); border:1px solid var(--accent) }
+button.link { background:none; color:var(--muted); padding:4px 8px; text-decoration:underline }
+button.danger { color:#b91c1c; margin-top:12px }
+.card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px; margin:16px 0 }
+.card h3 { margin-top:0 }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px }
+.row { display:flex; gap:8px } .row > * { flex:1 } .row button { flex:0 }
+.list,.items { list-style:none; padding:0 }
+.list li { background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin:8px 0 }
+.list a { text-decoration:none; color:inherit; display:block }
+.items li { display:flex; justify-content:space-between; gap:12px; align-items:center; background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin:8px 0 }
+.items li.taken { opacity:.65 }
+.badge { background:#fde2e7; color:var(--accent); padding:4px 10px; border-radius:999px; font-size:.85rem; white-space:nowrap }
+.note { background:#fff1f3; border-radius:8px; padding:10px 12px }
+.muted { color:var(--muted) } .small { font-size:.85rem }
+.ok { color:#15803d } .err { color:#b91c1c }
+code { background:#f3f4f6; padding:1px 5px; border-radius:4px }
