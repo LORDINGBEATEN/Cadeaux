@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { fmtDate, getGuestName, guestToken, itemLabel, setGuestName } from '../lib/util'
+import { fmtDate, fmtPrice, getGuestName, guestToken, itemLabel, setGuestName } from '../lib/util'
 
-type Item = { id: string; title: string | null; url: string; note: string | null; claimed: boolean; claimed_by: string | null; mine: boolean }
+type Item = { id: string; title: string | null; url: string; note: string | null; price: number | null; currency: string | null; claimed: boolean; claimed_by: string | null; mine: boolean }
 type Shared = { title: string; occasion: string; event_date: string | null; owner_name: string | null; is_owner: boolean; items: Item[] }
 
 export default function SharedList() {
@@ -52,6 +52,7 @@ export default function SharedList() {
           <li key={i.id} className={i.claimed ? 'taken' : ''}>
             <div>
               <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a>
+              {i.price !== null && <span className="muted"> · {fmtPrice(i.price, i.currency)}</span>}
               {i.note && <div className="muted small">{i.note}</div>}
             </div>
             <div className="actions">

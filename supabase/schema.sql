@@ -27,6 +27,8 @@ create table items (
   title text,
   url text not null check (url ~* '^https?://'),
   note text,
+  price numeric,
+  currency text,
   created_at timestamptz default now()
 );
 
@@ -72,6 +74,7 @@ begin
     'items', coalesce((
       select json_agg(json_build_object(
         'id', i.id, 'title', i.title, 'url', i.url, 'note', i.note,
+        'price', i.price, 'currency', i.currency,
         'claimed', (not is_own and c.item_id is not null),
         'claimed_by', case when is_own then null else c.guest_name end,
         'mine', coalesce(not is_own and token is not null and c.guest_token = token, false)

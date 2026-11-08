@@ -13,3 +13,12 @@ export function guestToken() {
 }
 export const getGuestName = () => localStorage.getItem(NAME_KEY) ?? ''
 export const setGuestName = (n: string) => localStorage.setItem(NAME_KEY, n)
+
+export function fmtPrice(price: number | null, currency: string | null) {
+  if (price === null || price === undefined) return ''
+  try {
+    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: currency || 'EUR' }).format(price)
+  } catch {
+    return `${price} ${currency ?? ''}`.trim()
+  }
+}

@@ -1,36 +1,69 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { fmtDate, itemLabel } from '../lib/util'
+import { fmtDate, fmtPrice, itemLabel } from '../lib/util'
 
-type Item = { id: string; title: string | null; url: string; note: string | null }
+type Item = { id: string; title: string | null; url: string; note: string | null; price: number | null; currency: string | null }
 type List = { title: string; occasion: string; event_date: string | null; share_code: string }
+const EMPTY = { url: '', title: '', price: '', note: '' }
 
 export default function ListPage() {
   const { id } = useParams()
   const nav = useNavigate()
   const [list, setList] = useState<List | null>(null)
   const [items, setItems] = useState<Item[]>([])
-  const [f, setF] = useState({ url: '', title: '', note: '' })
+  const [f, setF] = useState(EMPTY)
+  const [currency, setCurrency] = useState<string | null>(null)
+  const [searching, setSearching] = useState(false)
+  const [hint, setHint] = useState('')
   const [err, setErr] = useState('')
   const [copied, setCopied] = useState(false)
+  const lastLookup = useRef('')
 
   async function load() {
     const [l, it] = await Promise.all([
       supabase.from('lists').select('title, occasion, event_date, share_code').eq('id', id).single(),
-      supabase.from('items').select('id, title, url, note').eq('list_id', id).order('created_at'),
+      supabase.from('items').select('id, title, url, note, price, currency').eq('list_id', id).order('created_at'),
     ])
     setList(l.data); setItems(it.data ?? [])
   }
   useEffect(() => { load() }, [id])
 
+  const normalize = (raw: string) => {
+    const u = raw.trim()
+    return u && !/^https?:\/\//i.test(u) ? 'https://' + u : u
+  }
+
+  // Récupère le nom et le prix de la page, sans écraser ce que l'utilisateur a déjà saisi.
+  async function lookup(raw: string) {
+    const url = normalize(raw)
+    if (!/^https?:\/\/[^\s.]+\.[^\s]+$/i.test(url) || url === lastLookup.current) return
+    lastLookup.current = url
+    setSearching(true); setHint('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const r = await fetch(`/api/preview?url=${encodeURIComponent(url)}`, { headers: { Authorization: `Bearer ${session?.access_token}` } })
+      const p: { title: string | null; price: number | null; currency: string | null } = await r.json()
+      setF(cur => ({ ...cur, title: cur.title || p.title || '', price: cur.price || (p.price !== null ? String(p.price) : '') }))
+      if (p.price !== null) setCurrency(p.currency)
+      setHint(p.title || p.price !== null
+        ? `Trouvé : ${[p.title, p.price !== null ? fmtPrice(p.price, p.currency) : null].filter(Boolean).join(' · ')}`
+        : 'Infos introuvables sur cette page : saisissez-les à la main.')
+    } catch {
+      setHint('Recherche impossible : saisissez les infos à la main.')
+    } finally { setSearching(false) }
+  }
+
   async function addItem(e: React.FormEvent) {
     e.preventDefault(); setErr('')
-    let url = f.url.trim()
-    if (!/^https?:\/\//i.test(url)) url = 'https://' + url
-    const { error } = await supabase.from('items').insert({ list_id: id, url, title: f.title.trim() || null, note: f.note.trim() || null })
+    const price = f.price ? Number(f.price.replace(',', '.')) : null
+    const { error } = await supabase.from('items').insert({
+      list_id: id, url: normalize(f.url), title: f.title.trim() || null, note: f.note.trim() || null,
+      price: price !== null && Number.isFinite(price) ? price : null,
+      currency: price !== null ? currency || 'EUR' : null,
+    })
     if (error) return setErr('Lien invalide : ' + error.message)
-    setF({ url: '', title: '', note: '' }); load()
+    setF(EMPTY); setCurrency(null); setHint(''); lastLookup.current = ''; load()
   }
   async function remove(itemId: string) { await supabase.from('items').delete().eq('id', itemId); load() }
   async function deleteList() {
@@ -62,6 +95,7 @@ export default function ListPage() {
           <li key={i.id}>
             <div>
               <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a>
+              {i.price !== null && <span className="muted"> · {fmtPrice(i.price, i.currency)}</span>}
               {i.note && <div className="muted small">{i.note}</div>}
             </div>
             <button className="link" onClick={() => remove(i.id)}>Supprimer</button>
@@ -71,12 +105,18 @@ export default function ListPage() {
 
       <form onSubmit={addItem} className="card">
         <h3>Ajouter une idée</h3>
-        <input required placeholder="Lien de la page web (https://…)" value={f.url} onChange={e => setF({ ...f, url: e.target.value })} />
+        <input required placeholder="Lien de la page web (https://…)" value={f.url}
+          onChange={e => setF({ ...f, url: e.target.value })}
+          onBlur={e => lookup(e.target.value)}
+          onPaste={e => { const t = e.clipboardData.getData('text'); setTimeout(() => lookup(t), 0) }} />
+        {searching && <p className="muted small">🔎 Recherche du nom et du prix…</p>}
+        {!searching && hint && <p className="muted small">{hint}</p>}
         <div className="row">
-          <input placeholder="Nom (facultatif)" value={f.title} onChange={e => setF({ ...f, title: e.target.value })} />
-          <input placeholder="Note : taille, couleur… (facultatif)" value={f.note} onChange={e => setF({ ...f, note: e.target.value })} />
+          <input placeholder="Nom" value={f.title} onChange={e => setF({ ...f, title: e.target.value })} />
+          <input inputMode="decimal" placeholder="Prix" value={f.price} onChange={e => setF({ ...f, price: e.target.value })} style={{ maxWidth: 110 }} />
         </div>
-        <button>Ajouter</button>
+        <input placeholder="Note : taille, couleur… (facultatif)" value={f.note} onChange={e => setF({ ...f, note: e.target.value })} />
+        <button disabled={searching}>Ajouter</button>
         {err && <p className="err">{err}</p>}
       </form>
       <button className="link danger" onClick={deleteList}>Supprimer la liste</button>
