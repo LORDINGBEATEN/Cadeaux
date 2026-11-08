@@ -11,15 +11,17 @@ function apiDev(): Plugin {
   return {
     name: 'api-dev',
     configureServer(server) {
-      server.middlewares.use('/api/preview', async (req, res) => {
-        try {
-          const mod = await server.ssrLoadModule('/api/preview.ts')
-          await mod.default(req, res)
-        } catch (e) {
-          res.statusCode = 500
-          res.end(String(e))
-        }
-      })
+      for (const name of ['preview', 'img']) {
+        server.middlewares.use('/api/' + name, async (req, res) => {
+          try {
+            const mod = await server.ssrLoadModule(`/api/${name}.ts`)
+            await mod.default(req, res)
+          } catch (e) {
+            res.statusCode = 500
+            res.end(String(e))
+          }
+        })
+      }
     },
   }
 }
