@@ -135,3 +135,6 @@ ol { padding-left:1.2rem } li { margin:4px 0 }
 .archives > .link { font-size:.95rem; padding-left:0 }
 .rows li.archived { opacity:.8 }
 @media (pointer:coarse) { .bmframe { display:none } }
+
+.claimrow { display:flex; align-items:center; gap:6px; margin-top:4px; flex-wrap:wrap }
+.claimrow .link { font-size:.82rem; padding-left:2px }

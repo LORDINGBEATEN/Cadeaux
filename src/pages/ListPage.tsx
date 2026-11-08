@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Thumb from '../lib/Thumb'
 import NewListModal from '../lib/NewListModal'
+import Modal from '../lib/Modal'
 import { fmtDate, fmtPrice, hostOf, itemLabel } from '../lib/util'
 
 type Item = { id: string; title: string | null; url: string; note: string | null; price: number | null; currency: string | null; image_url: string | null }
@@ -43,6 +44,9 @@ export default function ListPage() {
   const [draft, setDraft] = useState({ url: '', title: '', price: '', note: '', image: '' })
   const [editErr, setEditErr] = useState('')
   const [editingList, setEditingList] = useState(false)
+  const [claimFor, setClaimFor] = useState<string | null>(null)
+  const [claimName, setClaimName] = useState('')
+  const [claimErr, setClaimErr] = useState('')
   const [claims, setClaims] = useState<Record<string, string>>({})
   const [hideClaims, setHideClaims] = useState(localStorage.getItem('ptite-hide-claims') === '1')
   const lastLookup = useRef('')
@@ -148,6 +152,17 @@ export default function ListPage() {
     if (error) return setEditErr('Modification impossible : ' + error.message)
     setEditing(null); load()
   }
+  async function claimForSomeone(e: React.FormEvent) {
+    e.preventDefault(); setClaimErr('')
+    const { error } = await supabase.rpc('owner_claim_item', { p_item: claimFor, guest: claimName })
+    if (error) return setClaimErr(error.message)
+    setClaimFor(null); load()
+  }
+  async function unclaimItem(itemId: string) {
+    if (!confirm(`Retirer la réservation de ${claims[itemId]} ?`)) return
+    await supabase.rpc('owner_unclaim_item', { p_item: itemId })
+    load()
+  }
   async function remove(itemId: string) {
     if (claims[itemId] && !confirm(`Cette idée est réservée par ${claims[itemId]}. La supprimer quand même ?`)) return
     await supabase.from('items').delete().eq('id', itemId); load() }
@@ -221,7 +236,13 @@ export default function ListPage() {
             <div>
               <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a>
               <div className="muted small">{hostOf(i.url)}{i.note ? ` · ${i.note}` : ''}</div>
-              {claims[i.id] && !hideClaims && <div style={{ marginTop: 4 }}><span className="badge">Réservé par {claims[i.id]}</span></div>}
+              {!hideClaims && (
+                <div className="claimrow">
+                  {claims[i.id]
+                    ? <><span className="badge">Réservé par {claims[i.id]}</span><button type="button" className="link" onClick={() => unclaimItem(i.id)}>Retirer</button></>
+                    : <button type="button" className="link" onClick={() => { setClaimName(''); setClaimErr(''); setClaimFor(i.id) }}>Réserver pour quelqu'un…</button>}
+                </div>
+              )}
             </div>
             {i.price !== null && <div className="price">{fmtPrice(i.price, i.currency)}</div>}
             <div className="actions">
@@ -263,6 +284,19 @@ export default function ListPage() {
           onClose={() => setEditingList(false)}
           onCreated={() => { setEditingList(false); load() }}
         />
+      )}
+      {claimFor && (
+        <Modal title="Réserver pour quelqu'un" onClose={() => setClaimFor(null)}>
+          <form onSubmit={claimForSomeone}>
+            <p className="muted small" style={{ marginTop: 0 }}>« {itemLabel(items.find(x => x.id === claimFor) ?? { title: null, url: '' })} » sera marquée comme réservée au nom de la personne indiquée.</p>
+            <input required autoFocus maxLength={60} placeholder="Prénom de la personne" value={claimName} onChange={e => setClaimName(e.target.value)} />
+            {claimErr && <p className="err">{claimErr}</p>}
+            <div className="btnrow" style={{ marginTop: 12 }}>
+              <button>Réserver</button>
+              <button type="button" className="secondary" onClick={() => setClaimFor(null)}>Annuler</button>
+            </div>
+          </form>
+        </Modal>
       )}
     </>
   )
