@@ -1,7 +1,10 @@
 // Script du favori « + Ma P'tite Liste ». Il s'exécute dans la page du produit (dans le navigateur
 // de l'utilisateur, donc sans blocage anti-robot), lit nom, prix et photo, puis ouvre l'appli.
 // Cette fonction doit rester autonome : elle est convertie en texte pour devenir le favori.
-export function grab(app: string) {
+// À incrémenter quand le script ci-dessous change : les utilisateurs sont alors invités à réinstaller le bouton.
+export const BOOKMARKLET_VERSION = 1
+
+export function grab(app: string, ver: number) {
   const meta = (n: string) =>
     (document.querySelector(`meta[property="${n}"],meta[name="${n}"],meta[itemprop="${n}"]`) as HTMLMetaElement | null)?.content || ''
   const txt = (sel: string) => (document.querySelector(sel)?.textContent || '').replace(/\s+/g, ' ').trim()
@@ -79,6 +82,7 @@ export function grab(app: string) {
 
   const p = new URLSearchParams()
   p.set('u', location.href.split('#')[0])
+  p.set('v', String(ver))
   if (title) p.set('t', title)
   if (price) p.set('p', price)
   if (price && cur) p.set('c', cur)
@@ -88,4 +92,4 @@ export function grab(app: string) {
 
 // Un favori est une seule ligne : on encode le script (le navigateur le décode à l'exécution).
 export const bookmarkletCode = (app: string) =>
-  'javascript:' + encodeURIComponent(`(${grab.toString()})(${JSON.stringify(app)});void 0`)
+  'javascript:' + encodeURIComponent(`(${grab.toString()})(${JSON.stringify(app)},${BOOKMARKLET_VERSION});void 0`)

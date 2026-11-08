@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import Thumb from '../lib/Thumb'
 import NewListModal from '../lib/NewListModal'
 import { fmtPrice, hostOf } from '../lib/util'
+import { BOOKMARKLET_VERSION } from '../lib/bookmarklet'
+import BookmarkletButton from '../lib/BookmarkletButton'
 
 const LAST = 'ptite-last-list'
 const NEW = '__new'
@@ -16,6 +18,8 @@ export default function AddFromPage() {
   const image = q.get('i') && /^https?:\/\//i.test(q.get('i')!) ? q.get('i') : null
   const currency = /^[A-Z]{3}$/.test(q.get('c') ?? '') ? q.get('c')! : 'EUR'
   const validUrl = /^https?:\/\/\S+$/i.test(url)
+  const ver = Number(q.get('v') ?? 1) || 1
+  const outdated = ver < BOOKMARKLET_VERSION
 
   const [lists, setLists] = useState<L[] | null>(null)
   const [listId, setListId] = useState('')
@@ -28,6 +32,7 @@ export default function AddFromPage() {
 
   useEffect(() => {
     localStorage.removeItem('ptite-pending-add') // la fiche est ouverte : plus rien à reprendre
+    if (validUrl) localStorage.setItem('ptite-bm-version', String(ver))
     supabase.from('lists').select('id, title').order('title').then(({ data }) => {
       const ls = data ?? []
       setLists(ls)
@@ -84,6 +89,12 @@ export default function AddFromPage() {
   return (
     <>
     <form onSubmit={submit} className="card">
+      {outdated && (
+        <div className="bmupdate-note">
+          <strong>Votre bouton Coup de cœur n'est plus à jour.</strong> Glissez celui-ci dans vos favoris pour remplacer l'ancien :
+          <div style={{ marginTop: 8 }}><BookmarkletButton /></div>
+        </div>
+      )}
       <h3>Ajouter à ma liste</h3>
       <div className="it-preview">
         <Thumb label={title || 'Idée'} image={image} />

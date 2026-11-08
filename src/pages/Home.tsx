@@ -6,6 +6,7 @@ import Thumb from '../lib/Thumb'
 import NewListModal from '../lib/NewListModal'
 import BookmarkletButton from '../lib/BookmarkletButton'
 import { useProfileName } from '../lib/profile'
+import { BOOKMARKLET_VERSION } from '../lib/bookmarklet'
 import { daysUntil, fmtDate, inDays, itemLabel } from '../lib/util'
 
 type Item = { id: string; title: string | null; url: string | null; image_url: string | null }
@@ -87,9 +88,20 @@ export default function Home() {
   const frame = !hideCdc && (
     <section className="bmframe">
       <button type="button" className="bmclose" aria-label="Masquer ce bloc" onClick={hideFrame}>✕</button>
-      <strong>💝 Coup de cœur</strong>
+      <strong className="bm-title"><img src="/favicon.svg" alt="" width="20" height="20" />Coup de cœur</strong>
       <p>Un produit repéré dans une boutique ? Ajoutez-le à une liste en un clic, avec son nom, son prix et sa photo.</p>
       <p className="muted small">Glissez le bouton dans votre barre de favoris. <Link to="/coup-de-coeur">Comment ça marche</Link></p>
+      <div className="bmaction"><BookmarkletButton /></div>
+    </section>
+  )
+
+  // Bouton installé dans une ancienne version : on invite à le remplacer.
+  const seen = Number(localStorage.getItem('ptite-bm-version') ?? 0)
+  const outdated = seen > 0 && seen < BOOKMARKLET_VERSION
+  const update = outdated && (
+    <section className="bmframe bmupdate">
+      <strong>Mise à jour du bouton Coup de cœur</strong>
+      <p>Une nouvelle version est disponible. Glissez ce bouton dans votre barre de favoris pour remplacer l'ancien.</p>
       <div className="bmaction"><BookmarkletButton /></div>
     </section>
   )
@@ -105,6 +117,7 @@ export default function Home() {
       <>
         {hello(archived.length > 0 ? 'Aucune liste active pour le moment.' : "Créez votre première liste d'idées cadeaux, puis partagez-la par lien.")}
         {addRow}
+        {update}
         {frame}
         {Archives()}
         {modal}
@@ -146,6 +159,7 @@ export default function Home() {
   return (
     <>
       {hello()}
+      {update}
       {frame}
 
       {(showFilters || query) && (

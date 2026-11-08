@@ -168,7 +168,7 @@ ol { padding-left:1.2rem } li { margin:4px 0 }
 
 .bmframe .bmclose{position:absolute;top:8px;right:8px;background:none;color:var(--muted);padding:4px 8px;font-size:1rem;line-height:1;font-weight:400;border-radius:8px}
 .bmframe .bmclose:hover{background:var(--accent-soft);color:var(--ink)}
-.bmframe .bmaction{margin-top:6px}
+.bmframe .bmaction{margin-top:10px;align-self:center}
 .timeline{list-style:none;margin:0 0 8px;padding:0}
 .timeline li{display:grid;grid-template-columns:46px 22px minmax(0,1fr);align-items:stretch;gap:0 6px}
 .tl-date{text-align:center;padding-top:14px;font-size:.68rem;text-transform:uppercase;letter-spacing:.03em;color:var(--accent-ink);line-height:1.15}
@@ -196,3 +196,9 @@ ol { padding-left:1.2rem } li { margin:4px 0 }
 .tl-title{margin:0 0 4px 2px}
 .timeline li.archived .tl-card{background:transparent}
 .timeline li.archived .lc-title{color:var(--muted)}
+.bm-btn{display:inline-flex;align-items:center;gap:8px}
+.bm-ico{width:20px;height:20px;border-radius:6px;background:#fff;pointer-events:none}
+.bm-title{display:flex;align-items:center;gap:8px}
+.bm-title img{border-radius:6px}
+.bmupdate{border-left-color:#E0A100;background:#FFFBEB}
+.bmupdate-note{background:#FFFBEB;border:1px solid #F3DFA0;border-radius:12px;padding:12px 14px;margin-bottom:12px;font-size:.92rem}
