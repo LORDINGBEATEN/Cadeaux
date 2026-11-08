@@ -15,6 +15,14 @@ export default function Home() {
   const nav = useNavigate()
 
   useEffect(() => {
+    try {
+      const raw = localStorage.getItem('ptite-pending-add')
+      if (raw) {
+        localStorage.removeItem('ptite-pending-add')
+        const { search, at } = JSON.parse(raw) as { search: string; at: number }
+        if (Date.now() - at < 3600_000) { nav('/ajouter' + search, { replace: true }); return }
+      }
+    } catch { /* ignoré */ }
     supabase.from('lists').select('id, title, occasion, event_date').order('event_date', { nullsFirst: false })
       .then(({ data }) => setLists(data ?? []))
   }, [])
