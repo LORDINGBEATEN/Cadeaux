@@ -3,13 +3,12 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import Thumb from '../lib/Thumb'
-import Modal from '../lib/Modal'
+import NewListModal from '../lib/NewListModal'
 import BookmarkletButton from '../lib/BookmarkletButton'
 import { daysUntil, fmtDate, inDays, itemLabel } from '../lib/util'
 
 type Item = { id: string; title: string | null; url: string; image_url: string | null }
 type L = { id: string; title: string; occasion: string; event_date: string | null; share_code: string; archived_at: string | null; items: Item[] }
-const OCCASIONS = ['Anniversaire', 'Noël', 'Naissance', 'Mariage', 'Autre']
 const VIEW = 'ptite-lists-view'
 const HIDE_CDC = 'ptite-hide-coup-de-coeur'
 const NO_DATE = '__nodate'
@@ -39,10 +38,6 @@ export default function Home() {
   const [filter, setFilter] = useState('all')
   const [view, setView] = useState<'cards' | 'rows'>(localStorage.getItem(VIEW) === 'rows' ? 'rows' : 'cards')
   const [creating, setCreating] = useState(false)
-  const [title, setTitle] = useState('')
-  const [occasion, setOccasion] = useState(OCCASIONS[0])
-  const [date, setDate] = useState('')
-  const [err, setErr] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
   const [showArchives, setShowArchives] = useState(false)
   const [hideCdc, setHideCdc] = useState(localStorage.getItem(HIDE_CDC) === '1')
@@ -84,34 +79,13 @@ export default function Home() {
     setCopied(l.id); setTimeout(() => setCopied(c => (c === l.id ? null : c)), 2000)
   }
   async function restore(id: string) { await supabase.from('lists').update({ archived_at: null }).eq('id', id); load() }
-  async function create(e: React.FormEvent) {
-    e.preventDefault(); setErr('')
-    const { data, error } = await supabase.from('lists').insert({ title, occasion, event_date: date || null }).select('id').single()
-    if (error) return setErr(error.message)
-    nav(`/l/${data.id}`)
-  }
-  function openCreate() { setTitle(''); setDate(''); setErr(''); setCreating(true) }
+  function openCreate() { setCreating(true) }
 
   if (lists === null) return <p>Chargement…</p>
 
   const newListButton = <button type="button" onClick={openCreate}>+ Nouvelle liste</button>
 
-  const modal = creating && (
-    <Modal title="Nouvelle liste" onClose={() => setCreating(false)}>
-      <form onSubmit={create}>
-        <input required autoFocus placeholder="Ex : Mes idées pour Noël" value={title} onChange={e => setTitle(e.target.value)} />
-        <div className="row">
-          <select value={occasion} onChange={e => setOccasion(e.target.value)} aria-label="Occasion">{OCCASIONS.map(o => <option key={o}>{o}</option>)}</select>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)} aria-label="Date" />
-        </div>
-        {err && <p className="err">{err}</p>}
-        <div className="btnrow" style={{ marginTop: 12 }}>
-          <button>Créer la liste</button>
-          <button type="button" className="secondary" onClick={() => setCreating(false)}>Annuler</button>
-        </div>
-      </form>
-    </Modal>
-  )
+  const modal = creating && <NewListModal onClose={() => setCreating(false)} onCreated={id => nav(`/l/${id}`)} />
 
   const frame = !hideCdc && (
     <section className="bmframe">

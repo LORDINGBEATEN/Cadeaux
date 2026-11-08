@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Thumb from '../lib/Thumb'
+import NewListModal from '../lib/NewListModal'
 import { fmtPrice, hostOf } from '../lib/util'
 
 const LAST = 'ptite-last-list'
+const NEW = '__new'
 type L = { id: string; title: string }
 
 // Écran ouvert par le bouton de la barre de favoris : la fiche arrive préremplie.
@@ -21,6 +23,7 @@ export default function AddFromPage() {
   const [price, setPrice] = useState(q.get('p') ?? '')
   const [note, setNote] = useState('')
   const [err, setErr] = useState('')
+  const [creatingList, setCreatingList] = useState(false)
   const [added, setAdded] = useState<{ list: string; listTitle: string } | null>(null)
 
   useEffect(() => {
@@ -46,6 +49,13 @@ export default function AddFromPage() {
     setAdded({ list: listId, listTitle: lists?.find(l => l.id === listId)?.title ?? '' })
   }
 
+  const newListModal = creatingList && (
+    <NewListModal
+      onClose={() => setCreatingList(false)}
+      onCreated={(id, t) => { setLists(prev => [...(prev ?? []), { id, title: t }]); setListId(id); setCreatingList(false) }}
+    />
+  )
+
   if (!validUrl)
     return <div className="card"><h3>Rien à ajouter</h3><p className="muted">Cette page s'ouvre depuis le bouton de la barre de favoris. <Link to="/bouton">Installer le bouton</Link></p></div>
   if (added)
@@ -60,9 +70,19 @@ export default function AddFromPage() {
     )
   if (lists === null) return <p>Chargement…</p>
   if (lists.length === 0)
-    return <div className="card"><h3>Créez d'abord une liste</h3><p className="muted">Vous n'avez pas encore de liste. <Link to="/">Créer ma première liste</Link>, puis relancez le bouton.</p></div>
+    return (
+      <>
+        <div className="card center">
+          <h3>Créez d'abord une liste</h3>
+          <p className="muted">Vous n'avez pas encore de liste pour y ajouter « {title || hostOf(url)} ».</p>
+          <button type="button" onClick={() => setCreatingList(true)}>+ Nouvelle liste</button>
+        </div>
+        {newListModal}
+      </>
+    )
 
   return (
+    <>
     <form onSubmit={submit} className="card">
       <h3>Ajouter à ma liste</h3>
       <div className="it-preview">
@@ -71,8 +91,9 @@ export default function AddFromPage() {
       </div>
       <input required placeholder="Nom" value={title} onChange={e => setTitle(e.target.value)} />
       <div className="row">
-        <select value={listId} onChange={e => setListId(e.target.value)} aria-label="Liste">
+        <select value={listId} onChange={e => (e.target.value === NEW ? setCreatingList(true) : setListId(e.target.value))} aria-label="Liste">
           {lists.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
+          <option value={NEW}>+ Nouvelle liste…</option>
         </select>
         <input inputMode="decimal" placeholder="Prix" value={price} onChange={e => setPrice(e.target.value)} style={{ maxWidth: 110 }} />
       </div>
@@ -80,5 +101,7 @@ export default function AddFromPage() {
       {err && <p className="err">{err}</p>}
       <button style={{ width: '100%', marginTop: 8 }}>Ajouter</button>
     </form>
+    {newListModal}
+    </>
   )
 }
