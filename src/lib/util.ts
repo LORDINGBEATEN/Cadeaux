@@ -52,3 +52,10 @@ export function firstName(full: string | null | undefined): string {
   const w = (full ?? '').trim().split(/\s+/)[0] ?? ''
   return w ? w.charAt(0).toUpperCase() + w.slice(1) : ''
 }
+
+// Tri des idées : 1 = participations en cours, 2 = disponibles, 3 = réservées ou complètes ; puis prix croissant (sans prix en dernier).
+export function sortIdeas<T extends { price: number | null }>(items: T[], rank: (i: T) => 1 | 2 | 3): T[] {
+  return items.map((it, n) => ({ it, n, r: rank(it) })).sort((a, b) =>
+    a.r - b.r
+    || (a.it.price ?? Infinity) - (b.it.price ?? Infinity) || a.n - b.n).map(x => x.it)
+}

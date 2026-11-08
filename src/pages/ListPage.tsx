@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import Thumb from '../lib/Thumb'
 import NewListModal from '../lib/NewListModal'
 import Modal from '../lib/Modal'
-import { daysUntil, fmtDate, fmtPrice, hostOf, inDays, itemLabel } from '../lib/util'
+import { sortIdeas, daysUntil, fmtDate, fmtPrice, hostOf, inDays, itemLabel } from '../lib/util'
 
 type Item = { id: string; title: string | null; url: string | null; note: string | null; price: number | null; currency: string | null; image_url: string | null; no_group: boolean }
 type List = { title: string; occasion: string; event_date: string | null; share_code: string; archived_at: string | null }
@@ -209,7 +209,9 @@ export default function ListPage() {
   const done = (i: Item) => !!claims[i.id] || complete(i)
   const taken = items.filter(done).length
   const d = daysUntil(list.event_date)
-  const shown = items.filter(i => hideClaims || filter === 'all' || (filter === 'taken' ? done(i) : !done(i)))
+  const shown = sortIdeas(
+    items.filter(i => hideClaims || filter === 'all' || (filter === 'taken' ? done(i) : !done(i))),
+    i => hideClaims ? 2 : done(i) ? 3 : (contribs[i.id]?.length ?? 0) > 0 ? 1 : 2)
   const sub = [list.occasion, list.event_date && fmtDate(list.event_date), d !== null && d >= 0 ? inDays(d) : null].filter(Boolean).join(' · ')
 
   return (
@@ -285,7 +287,7 @@ export default function ListPage() {
               {menuFor === i.id && (
                 <div className="profile-menu" role="menu">
                   <button type="button" className="pm-item" onClick={() => { setMenuFor(null); startEdit(i) }}>Modifier</button>
-                  {!claims[i.id] && <button type="button" className="pm-item" onClick={() => { setMenuFor(null); toggleGroup(i) }}>{i.no_group ? 'Autoriser les participations' : 'Ne pas proposer « à plusieurs »'}</button>}
+                  {!claims[i.id] && <button type="button" className="pm-item" onClick={() => { setMenuFor(null); toggleGroup(i) }}>{i.no_group ? (i.price === null ? 'Autoriser la cagnotte' : 'Autoriser les participations') : (i.price === null ? 'Ne pas proposer de cagnotte' : 'Ne pas proposer « à plusieurs »')}</button>}
                   {!hideClaims && claims[i.id] && <button type="button" className="pm-item" onClick={() => { setMenuFor(null); unclaimItem(i.id) }}>Retirer la réservation</button>}
                   <button type="button" className="pm-item" onClick={() => { setMenuFor(null); remove(i.id) }}>Supprimer</button>
                 </div>
@@ -294,11 +296,11 @@ export default function ListPage() {
             {(contribs[i.id]?.length ?? 0) > 0 && (
               <div className="group">
                 {hideClaims
-                  ? <span className="chip">Des participations en cours</span>
+                  ? <span className="chip">{i.price === null ? 'Cagnotte en cours' : 'Des participations en cours'}</span>
                   : <>
                       {i.price !== null && <div className="pbar"><div style={{ width: `${Math.min(100, i.price ? (total(i) / i.price) * 100 : 0)}%` }} /></div>}
                       <div className="between small" style={{ marginTop: 4 }}>
-                        <span className="muted">{fmtPrice(total(i), i.currency)} réunis{i.price !== null ? ` sur ${fmtPrice(i.price, i.currency)}` : ''} · {(contribs[i.id] ?? []).length} participant{(contribs[i.id] ?? []).length > 1 ? 's' : ''}</span>
+                        <span className="muted">{i.price !== null ? `${fmtPrice(total(i), i.currency)} réunis sur ${fmtPrice(i.price, i.currency)}` : <><b className="cag">Cagnotte</b> {fmtPrice(total(i), i.currency)} collectés</>} · {(contribs[i.id] ?? []).length} participant{(contribs[i.id] ?? []).length > 1 ? 's' : ''}</span>
                         {i.price !== null && <strong className={complete(i) ? 'ok' : 'miss'}>{complete(i) ? 'Complet' : `Il manque ${fmtPrice(i.price - total(i), i.currency)}`}</strong>}
                       </div>
                       {(contribs[i.id] ?? []).length > 0 && !contribs[i.id].some(c => c.is_buyer) && (

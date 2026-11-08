@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Thumb from '../lib/Thumb'
 import Modal from '../lib/Modal'
-import { countdown, firstName, fmtDate, fmtPrice, getGuestName, guestToken, hostOf, itemLabel, setGuestName } from '../lib/util'
+import { countdown, firstName, sortIdeas, fmtDate, fmtPrice, getGuestName, guestToken, hostOf, itemLabel, setGuestName } from '../lib/util'
 
 type Item = { id: string; title: string | null; url: string | null; note: string | null; price: number | null; currency: string | null; image_url: string | null; claimed: boolean; claimed_by: string | null; anonymous: boolean; mine: boolean
   group_gift: boolean; contrib_total: number; contrib_count: number; participant: boolean; contributors: { name: string; amount: number; buyer: boolean; mine: boolean }[] | null }
@@ -70,7 +70,7 @@ export default function SharedList() {
       <div className="group">
         {i.price !== null && <div className="pbar"><div style={{ width: `${Math.min(100, price ? (total / price) * 100 : 0)}%` }} /></div>}
         <div className="between small" style={{ marginTop: 4 }}>
-          <span className="muted">{fmtPrice(total, i.currency)} réunis{i.price !== null ? ` sur ${fmtPrice(price, i.currency)}` : ''} · {n} participant{n > 1 ? 's' : ''}</span>
+          <span className="muted">{i.price !== null ? `${fmtPrice(total, i.currency)} réunis sur ${fmtPrice(price, i.currency)}` : <><b className="cag">Cagnotte</b> {fmtPrice(total, i.currency)} collectés</>} · {n} participant{n > 1 ? 's' : ''}</span>
           {i.price !== null && <strong className={complete ? 'ok' : 'miss'}>{complete ? 'Complet' : `Il manque ${fmtPrice(price - total, i.currency)}`}</strong>}
         </div>
         {i.contributors === null && n > 0 && <div className="muted small">Les noms sont visibles après avoir participé.</div>}
@@ -118,7 +118,7 @@ export default function SharedList() {
 
       {data.items.length === 0 && <p className="muted">Aucune idée pour le moment.</p>}
       <ul className="items">
-        {data.items.map(i => (
+        {sortIdeas(data.items, i => (i.claimed || isComplete(i) ? 3 : i.group_gift && Number(i.contrib_count) > 0 ? 1 : 2)).map(i => (
           <li key={i.id} className={`${i.claimed || isComplete(i) ? 'taken' : ''}${canOffer(i) || (i.group_gift && !i.claimed && !data.is_owner) ? ' has-group' : ''}`}>
             {(i.claimed || isComplete(i)) && <span className="ribbon"><i>{i.claimed ? 'Réservé' : 'Complet'}</i></span>}
             <Thumb label={itemLabel(i)} image={i.image_url} />
@@ -165,7 +165,7 @@ export default function SharedList() {
         const mineAmt = it.contributors?.find(c => c.mine)?.amount ?? 0
         const remaining = Math.max((it.price ?? 0) - Number(it.contrib_total), 0) + mineAmt
         return (
-          <Modal title="Participer au cadeau" onClose={() => setContributing(null)}>
+          <Modal title={it.price !== null ? 'Participer au cadeau' : 'Participer à la cagnotte'} onClose={() => setContributing(null)}>
             <form onSubmit={contribute}>
               <p className="muted small" style={{ marginTop: 0 }}>« {itemLabel(it)} »{it.price !== null ? ` · il manque ${fmtPrice(remaining, it.currency)}` : ''}. Les autres participants verront votre prénom et votre part.</p>
               <label className="small">Votre prénom</label>

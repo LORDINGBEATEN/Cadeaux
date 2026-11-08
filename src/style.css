@@ -235,3 +235,4 @@ ol { padding-left:1.2rem } li { margin:4px 0 }
 .alert .link{color:#6B4E00;font-weight:600}
 .items li > .tile,.items li > img.thumb{width:52px;height:52px;min-width:52px;flex:none;object-fit:cover}
 .tile-default{background:#FDEEE9;color:#E58A78;border:1px solid var(--line)}
+.cag{color:var(--accent-ink);font-weight:600}
