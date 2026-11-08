@@ -54,6 +54,7 @@ export default function SharedList() {
       <ul className="items">
         {data.items.map(i => (
           <li key={i.id} className={i.claimed ? 'taken' : ''}>
+            {i.claimed && <span className="ribbon"><i>Réservé</i></span>}
             <Thumb label={itemLabel(i)} image={i.image_url} />
             <div>
               {i.url ? <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a> : <strong>{itemLabel(i)}</strong>}

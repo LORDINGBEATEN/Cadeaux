@@ -210,6 +210,11 @@ ol { padding-left:1.2rem } li { margin:4px 0 }
 .items.irows li{border-radius:14px}
 .check{display:flex;align-items:flex-start;gap:10px;margin:14px 0 0;cursor:pointer}
 .check input{width:auto;margin:3px 0 0}
-.items li.taken{position:relative;overflow:hidden;background:#F6F1EE}
+.items li.taken{position:relative;background:#F6F1EE}
 .items li.taken > div:first-of-type,.items li.taken .tile,.items li.taken img{opacity:.5;filter:grayscale(1)}
-.items li.taken::after{content:"Réservé";position:absolute;top:13px;left:-30px;width:110px;text-align:center;transform:rotate(-38deg);background:#5B4F58;color:#fff;font-size:.62rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:3px 0;pointer-events:none}
+.ribbon{position:absolute;top:0;left:0;width:78px;height:78px;overflow:hidden;border-radius:14px 0 0 0;pointer-events:none}
+.ribbon i{position:absolute;top:15px;left:-31px;width:110px;text-align:center;transform:rotate(-38deg);background:#5B4F58;color:#fff;font-style:normal;font-size:.62rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:3px 0}
+.imenu > button,.imenu > button:hover,.imenu > button:focus,.imenu > button:active{background:none;color:var(--muted);font-size:1.3rem;line-height:1;padding:2px 10px;border-radius:8px;text-decoration:none;transform:none;box-shadow:none;outline:none}
+.imenu > button:hover{background:var(--accent-soft);color:var(--ink)}
+.imenu > button:focus-visible{box-shadow:0 0 0 3px var(--accent-soft)}
+.imenu .profile-menu{z-index:50}

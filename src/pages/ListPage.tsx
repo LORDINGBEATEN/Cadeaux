@@ -252,6 +252,7 @@ export default function ListPage() {
           </li>
         ) : (
           <li key={i.id} className={claims[i.id] && !hideClaims ? 'taken' : ''}>
+            {claims[i.id] && !hideClaims && <span className="ribbon"><i>Réservé</i></span>}
             <Thumb label={itemLabel(i)} image={i.image_url} />
             <div>
               {i.url ? <a href={i.url} target="_blank" rel="noreferrer noopener"><strong>{itemLabel(i)}</strong></a> : <strong>{itemLabel(i)}</strong>}
