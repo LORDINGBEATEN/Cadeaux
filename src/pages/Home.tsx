@@ -5,8 +5,8 @@ import { useAuth } from '../lib/auth'
 import Thumb from '../lib/Thumb'
 import NewListModal from '../lib/NewListModal'
 import BookmarkletButton from '../lib/BookmarkletButton'
-import Modal from '../lib/Modal'
-import { daysUntil, firstName, fmtDate, inDays, itemLabel } from '../lib/util'
+import { useProfileName } from '../lib/profile'
+import { daysUntil, fmtDate, inDays, itemLabel } from '../lib/util'
 
 type Item = { id: string; title: string | null; url: string | null; image_url: string | null }
 type L = { id: string; title: string; occasion: string; event_date: string | null; share_code: string; archived_at: string | null; items: Item[] }
@@ -39,11 +39,7 @@ export default function Home() {
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
-  const [profileName, setProfileName] = useState('')
-  const [editingName, setEditingName] = useState(false)
-  const [nameDraft, setNameDraft] = useState('')
-  const [nameErr, setNameErr] = useState('')
-  const [showArchives, setShowArchives] = useState(false)
+  const { name } = useProfileName(user)
   const [hideCdc, setHideCdc] = useState(localStorage.getItem(HIDE_CDC) === '1')
   const nav = useNavigate()
 
@@ -52,9 +48,7 @@ export default function Home() {
       .select('id, title, occasion, event_date, share_code, archived_at, items(id, title, url, image_url, created_at)')
       .order('created_at', { referencedTable: 'items' })
     setLists((data as L[] | null) ?? [])
-    const p = await supabase.from('profiles').select('name').eq('id', user.id).maybeSingle()
-    setProfileName(p.data?.name ?? '')
-  }, [user.id])
+  }, [])
 
   useEffect(() => {
     try {
@@ -68,16 +62,12 @@ export default function Home() {
     load()
   }, [load, nav])
 
-  const rawName = profileName || (user.user_metadata?.name as string | undefined) || (user.email ?? '').split('@')[0].split(/[._+-]/)[0]
-  const name = firstName(rawName)
-
   const active = useMemo(() => sortLists((lists ?? []).filter(l => !l.archived_at)), [lists])
   const archived = useMemo(() => sortLists((lists ?? []).filter(l => l.archived_at)), [lists])
   const q = query.trim().toLowerCase()
   const visible = active
     .filter(l => filter === 'all' || (filter === NO_DATE ? !l.event_date : l.occasion === filter))
     .filter(l => !q || l.title.toLowerCase().includes(q))
-  const next = active.find(l => (daysUntil(l.event_date) ?? -1) >= 0)
   const occasions = [...new Set(active.map(l => l.occasion))]
   const showFilters = active.length >= 4
 
@@ -91,45 +81,22 @@ export default function Home() {
 
   if (lists === null) return <p>Chargement…</p>
 
-  const newListButton = <button type="button" onClick={openCreate}>+ Nouvelle liste</button>
-
   const modal = creating && <NewListModal onClose={() => setCreating(false)} onCreated={id => nav(`/l/${id}`)} />
-
-  async function saveName(e: React.FormEvent) {
-    e.preventDefault(); setNameErr('')
-    const { error } = await supabase.rpc('set_profile_name', { p_name: nameDraft })
-    if (error) return setNameErr(error.message)
-    setProfileName(nameDraft.trim()); setEditingName(false)
-  }
-  const nameModal = editingName && (
-    <Modal title="Mon prénom" onClose={() => setEditingName(false)}>
-      <form onSubmit={saveName}>
-        <p className="muted small" style={{ marginTop: 0 }}>Il s'affiche dans « Bonjour … » et sur vos listes partagées (« Liste de … »). Seul le premier mot est affiché : écrivez « Marie-Claire » avec un tiret.</p>
-        <input required autoFocus maxLength={60} placeholder="Votre prénom" value={nameDraft} onChange={e => setNameDraft(e.target.value)} />
-        {nameErr && <p className="err">{nameErr}</p>}
-        <div className="btnrow" style={{ marginTop: 12 }}>
-          <button>Enregistrer</button>
-          <button type="button" className="secondary" onClick={() => setEditingName(false)}>Annuler</button>
-        </div>
-      </form>
-    </Modal>
-  )
+  const addRow = <button type="button" className="addrow" onClick={openCreate}>+ Nouvelle liste</button>
 
   const frame = !hideCdc && (
     <section className="bmframe">
-      <div className="bmtext">
-        <strong>💝 Coup de cœur</strong>
-        <p>Un produit repéré dans une boutique ? Ajoutez-le à une liste en un clic, avec son nom, son prix et sa photo.</p>
-        <p className="muted small">Glissez le bouton dans votre barre de favoris. <Link to="/coup-de-coeur">Comment ça marche</Link></p>
-      </div>
-      <div className="bmaction"><BookmarkletButton /><button type="button" className="link" onClick={hideFrame}>Masquer</button></div>
+      <button type="button" className="bmclose" aria-label="Masquer ce bloc" onClick={hideFrame}>✕</button>
+      <strong>💝 Coup de cœur</strong>
+      <p>Un produit repéré dans une boutique ? Ajoutez-le à une liste en un clic, avec son nom, son prix et sa photo.</p>
+      <p className="muted small">Glissez le bouton dans votre barre de favoris. <Link to="/coup-de-coeur">Comment ça marche</Link></p>
+      <div className="bmaction"><BookmarkletButton /></div>
     </section>
   )
 
-  const hello = (text: string) => (
+  const hello = (text?: string) => (
     <div className="hello">
-      <div><h2>Bonjour {name} <button type="button" className="link" aria-label="Modifier mon prénom" onClick={() => { setNameDraft(name); setNameErr(''); setEditingName(true) }}>✎</button></h2><p className="muted">{text}</p></div>
-      {newListButton}
+      <div><h2>Bonjour {name}</h2>{text && <p className="muted">{text}</p>}</div>
     </div>
   )
 
@@ -137,10 +104,10 @@ export default function Home() {
     return (
       <>
         {hello(archived.length > 0 ? 'Aucune liste active pour le moment.' : "Créez votre première liste d'idées cadeaux, puis partagez-la par lien.")}
+        {addRow}
         {frame}
         {Archives()}
         {modal}
-        {nameModal}
       </>
     )
 
@@ -148,35 +115,37 @@ export default function Home() {
     if (archived.length === 0) return null
     return (
       <section className="archives">
-        <button type="button" className="link" onClick={() => setShowArchives(s => !s)} aria-expanded={showArchives}>
-          {showArchives ? '▾' : '▸'} Archives ({archived.length})
-        </button>
-        {showArchives && (
-          <ul className="rows">
-            {archived.map(l => {
-              const first = l.items[0]
-              return (
-                <li key={l.id} className="archived">
+        <div className="muted small tl-title">Archivées</div>
+        <ul className="timeline">
+          {archived.map(l => {
+            const dt = l.event_date ? new Date(l.event_date + 'T00:00:00') : null
+            return (
+              <li key={l.id} className="past archived">
+                <div className="tl-date">
+                  {dt ? <><span>{dt.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')}</span><b>{dt.getDate()}</b></> : <span>sans<br />date</span>}
+                </div>
+                <div className="tl-rail"><i /></div>
+                <div className="tl-card">
                   <Link to={`/l/${l.id}`} className="row-main">
-                    <Thumb label={first ? itemLabel(first) : l.title} image={first?.image_url ?? null} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="lc-title" style={{ padding: 0 }}>{l.title}</div>
-                      <div className="muted small">{[l.occasion, l.event_date && fmtDate(l.event_date), `${l.items.length} idée${l.items.length > 1 ? 's' : ''}`].filter(Boolean).join(' · ')}</div>
+                      <div className="muted small">{[l.occasion, `${l.items.length} idée${l.items.length > 1 ? 's' : ''}`].join(' · ')}</div>
                     </div>
+                    <span className="pill grey">Archivée</span>
                   </Link>
                   <button type="button" className="link" onClick={() => restore(l.id)}>Restaurer</button>
-                </li>
-              )
-            })}
-          </ul>
-        )}
+                </div>
+              </li>
+            )
+          })}
+        </ul>
       </section>
     )
   }
 
   return (
     <>
-      {hello(next ? `Prochaine date : ${next.title}, ${inDays(daysUntil(next.event_date)!)}` : 'Vos listes d’idées cadeaux')}
+      {hello()}
       {frame}
 
       {(showFilters || query) && (
@@ -192,33 +161,35 @@ export default function Home() {
         </div>
       )}
 
-      <ul className="rows compact">
+      <ul className="timeline">
         {visible.map(l => {
           const n = l.items.length
           const d = daysUntil(l.event_date)
           const dt = l.event_date ? new Date(l.event_date + 'T00:00:00') : null
           return (
-            <li key={l.id}>
-              <Link to={`/l/${l.id}`} className="row-main">
-                <div className={`datebadge${d === null ? ' none' : d < 0 ? ' past' : ''}`}>
-                  {dt ? <><span>{dt.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')}</span><b>{dt.getDate()}</b></> : <b>·</b>}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="lc-title" style={{ padding: 0 }}>{l.title}</div>
-                  <div className="muted small">{[l.occasion, `${n} idée${n > 1 ? 's' : ''}`].join(' · ')}</div>
-                </div>
-                <Pill l={l} />
-              </Link>
-              <button className="link" onClick={() => copy(l)} aria-label={`Copier le lien de ${l.title}`}>{copied === l.id ? 'Copié ✓' : '🔗'}</button>
+            <li key={l.id} className={d === null ? 'nodate' : d < 0 ? 'past' : ''}>
+              <div className="tl-date">
+                {dt ? <><span>{dt.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '')}</span><b>{dt.getDate()}</b></> : <span>sans<br />date</span>}
+              </div>
+              <div className="tl-rail"><i /></div>
+              <div className="tl-card">
+                <Link to={`/l/${l.id}`} className="row-main">
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="lc-title" style={{ padding: 0 }}>{l.title}</div>
+                    <div className="muted small">{[l.occasion, `${n} idée${n > 1 ? 's' : ''}`].join(' · ')}</div>
+                  </div>
+                  <Pill l={l} />
+                </Link>
+                <button className="link" onClick={() => copy(l)}>{copied === l.id ? 'Lien copié ✓' : 'Copier le lien'}</button>
+              </div>
             </li>
           )
         })}
       </ul>
-      {visible.length === 0 && <p className="muted">Aucune liste dans cette catégorie.</p>}
-
+      {visible.length === 0 && <p className="muted">Aucune liste dans ce filtre.</p>}
+      {addRow}
       {Archives()}
       {modal}
-      {nameModal}
     </>
   )
 }

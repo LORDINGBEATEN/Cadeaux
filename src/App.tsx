@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './lib/auth'
-import { configured, supabase } from './lib/supabase'
+import { configured } from './lib/supabase'
 import Login from './pages/Login'
 import Home from './pages/Home'
 import ListPage from './pages/ListPage'
@@ -9,6 +9,7 @@ import SharedList from './pages/SharedList'
 import Bookmark from './pages/Bookmark'
 import Brand from './lib/Brand'
 import AddFromPage from './pages/AddFromPage'
+import ProfileMenu from './lib/ProfileMenu'
 
 function Private() {
   const { session, loading } = useAuth()
@@ -25,7 +26,7 @@ function Private() {
     <>
       <header>
         <Link to="/" className="logo"><Brand /></Link>
-        <span><Link to="/coup-de-coeur" className="navlink">💝 Coup de cœur</Link><button className="link" onClick={() => supabase.auth.signOut()}>Déconnexion</button></span>
+        <ProfileMenu />
       </header>
       <main>
         <Routes>

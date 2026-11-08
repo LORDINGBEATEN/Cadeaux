@@ -127,7 +127,7 @@ ol { padding-left:1.2rem } li { margin:4px 0 }
 .dialog { background:#fff; border-radius:22px; padding:20px 22px 22px; width:100%; max-width:440px; max-height:90vh; overflow:auto }
 .dialog-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px }
 .dialog-head h3 { margin:0 }
-.bmframe { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:var(--radius); padding:14px 16px; margin:4px 0 18px }
+.bmframe { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; background:#fff; border:1px solid var(--line); border-left:4px solid var(--accent); border-radius:var(--radius); padding:14px 16px; margin:4px 0 18px; position:relative; flex-direction:column; align-items:flex-start }
 .bmframe p { margin:2px 0 }
 .bmtext { flex:1; min-width:220px }
 .bmaction { display:flex; align-items:center; gap:10px }
@@ -165,3 +165,34 @@ ol { padding-left:1.2rem } li { margin:4px 0 }
 .datebadge{width:46px;height:50px;flex:none;border-radius:12px;background:var(--accent-soft);color:var(--accent-ink);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;font-size:.68rem;text-transform:uppercase;letter-spacing:.03em}
 .datebadge b{font-size:1.15rem;font-weight:600;letter-spacing:0}
 .datebadge.none,.datebadge.past{background:#F3ECE8;color:#6B6070}
+
+.bmframe .bmclose{position:absolute;top:8px;right:8px;background:none;color:var(--muted);padding:4px 8px;font-size:1rem;line-height:1;font-weight:400;border-radius:8px}
+.bmframe .bmclose:hover{background:var(--accent-soft);color:var(--ink)}
+.bmframe .bmaction{margin-top:6px}
+.timeline{list-style:none;margin:0 0 8px;padding:0}
+.timeline li{display:grid;grid-template-columns:46px 22px minmax(0,1fr);align-items:stretch;gap:0 6px}
+.tl-date{text-align:center;padding-top:14px;font-size:.68rem;text-transform:uppercase;letter-spacing:.03em;color:var(--accent-ink);line-height:1.15}
+.tl-date b{display:block;font-size:1.25rem;font-weight:600;letter-spacing:0}
+.tl-rail{position:relative}
+.tl-rail::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--line)}
+.timeline li:first-child .tl-rail::before{top:22px}
+.timeline li:last-child .tl-rail::before{bottom:calc(100% - 22px)}
+.tl-rail i{position:absolute;left:50%;top:16px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--bg,#FFF8F0)}
+.timeline li.past .tl-rail i,.timeline li.nodate .tl-rail i{background:#CBBDB5}
+.timeline li.past .tl-date,.timeline li.nodate .tl-date{color:var(--muted)}
+.tl-card{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:16px;margin:6px 0;padding-right:10px}
+.tl-card:hover{border-color:#F3C9BD}
+.tl-card .link{white-space:nowrap;font-size:.85rem}
+.addrow{width:100%;background:none;color:var(--accent-ink);border:2px dashed #F3C9BD;border-radius:16px;padding:14px;margin:8px 0 4px}
+.addrow:hover{background:var(--accent-soft)}
+.profile{position:relative}
+.avatar{width:34px;height:34px;padding:0;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);font-weight:600;display:flex;align-items:center;justify-content:center}
+.avatar:hover{background:#F8CFC4}
+.profile-menu{position:absolute;right:0;top:42px;z-index:20;min-width:210px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:6px;box-shadow:0 8px 24px rgba(60,30,20,.12)}
+.pm-id{display:flex;flex-direction:column;padding:8px 10px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.pm-item{display:block;width:100%;text-align:left;background:none;color:var(--ink);font-weight:400;border-radius:10px;padding:8px 10px;margin:0}
+.pm-item:hover{background:var(--accent-soft)}
+.archives{margin-top:18px}
+.tl-title{margin:0 0 4px 2px}
+.timeline li.archived .tl-card{background:transparent}
+.timeline li.archived .lc-title{color:var(--muted)}
